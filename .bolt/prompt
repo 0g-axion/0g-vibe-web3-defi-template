@@ -1,0 +1,34 @@
+This is a COMPLETE Web3 DeFi demo app with a working swap interface on 0G Galileo Testnet.
+
+WHAT'S ALREADY BUILT:
+- Working swap UI with token selection, slippage settings, and transaction status
+- Wallet connection via RainbowKit (MetaMask, WalletConnect, Coinbase)
+- Glassmorphism design system with animated background
+- 0G Galileo Testnet pre-configured (Chain ID: 16602)
+
+PRE-BUILT COMPONENTS (use these for modifications):
+- UI: GlassCard, GlassButton, GlassInput, AnimatedBackground, GradientText, Shimmer, NumberFlow
+- Web3: ConnectButton, AccountInfo, NetworkBadge, TokenIcon, TokenBalance, TokenBalanceList, TokenInput, TokenSelect, TokenSelectModal, SwapCard, SwapSettings, TxStatusModal, ExplorerLink
+
+COMMON CUSTOMIZATIONS:
+- "Change colors" → Edit tailwind.config.js theme.extend.colors
+- "Add token balances" → Use <TokenBalanceList /> component
+- "Add NFT section" → Create new component using GlassCard
+- "Change swap tokens" → Edit src/constants/tokens.ts
+- "Modify animations" → Edit src/components/ui/animated-background.tsx
+
+NETWORK INFO:
+- Chain ID: 16602
+- RPC: https://evmrpc-testnet.0g.ai
+- Faucet: https://faucet.0g.ai
+- Explorer: https://chainscan-galileo.0g.ai
+- Swap is in DEMO MODE (simulated transactions) until Jaine DEX contracts are available
+
+FILE STRUCTURE:
+- src/components/ui/ → Glassmorphism design components
+- src/components/web3/ → Web3-specific components
+- src/hooks/ → React hooks for Web3 functionality
+- src/constants/ → Token definitions and contract ABIs
+- src/config/ → wagmi and chain configuration
+
+For stock photos, use images from Unsplash with valid URLs.
