@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
-import { useAccount } from 'wagmi'
+import { useState, useCallback, useEffect } from 'react'
+import { useAccount, useChainId } from 'wagmi'
 import { motion } from 'framer-motion'
-import { ArrowDownUp, AlertCircle, Info } from 'lucide-react'
+import { ArrowDownUp, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 import { GlassCard } from '@/components/ui/glass-card'
 import { GlassButton } from '@/components/ui/glass-button'
 import { TokenInput } from './token-input'
@@ -9,13 +9,13 @@ import { TokenSelectModal } from './token-select-modal'
 import { SwapSettings } from './swap-settings'
 import { TxStatusModal, type TxStatus } from './tx-status-modal'
 import { ConnectButton } from './connect-button'
+import { useSwap } from '@/hooks/useSwap'
 import {
-  TOKENS,
-  DEFAULT_FROM_TOKEN,
-  DEFAULT_TO_TOKEN,
-  IS_DEMO_MODE,
+  getTokens,
+  getDefaultTokenPair,
   type Token,
 } from '@/constants/tokens'
+import { hasDexSupport, CHAIN_IDS } from '@/config/chains'
 import { cn } from '@/lib/utils'
 
 export interface SwapCardProps {
@@ -28,42 +28,78 @@ export interface SwapCardProps {
  * Complete swap interface with token selection, amount inputs,
  * settings, and transaction status.
  *
+ * Network-aware:
+ * - Mainnet (16661): Real swaps via Janie DEX
+ * - Testnet (16602): Demo mode (simulated)
+ *
  * @example
  * <SwapCard />
  */
 export function SwapCard({ className }: SwapCardProps) {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const { status, error, txHash, getQuote, executeSwap, reset } = useSwap()
+
+  // Get network-aware token list and defaults
+  const tokens = getTokens(chainId)
+  const defaultPair = getDefaultTokenPair(chainId)
+  const isDemoMode = !hasDexSupport(chainId)
+  const isMainnet = chainId === CHAIN_IDS.MAINNET
 
   // Token state
-  const [fromToken, setFromToken] = useState<Token>(DEFAULT_FROM_TOKEN)
-  const [toToken, setToToken] = useState<Token>(DEFAULT_TO_TOKEN)
+  const [fromToken, setFromToken] = useState<Token>(defaultPair.from)
+  const [toToken, setToToken] = useState<Token>(defaultPair.to)
   const [fromAmount, setFromAmount] = useState('')
   const [toAmount, setToAmount] = useState('')
+
+  // Quote state
+  const [exchangeRate, setExchangeRate] = useState<number>(0)
+  const [priceImpact, setPriceImpact] = useState<number>(0)
 
   // UI state
   const [selectingToken, setSelectingToken] = useState<'from' | 'to' | null>(null)
   const [slippage, setSlippage] = useState(0.5)
   const [deadline, setDeadline] = useState(20)
-
-  // Transaction state
-  const [txStatus, setTxStatus] = useState<TxStatus>('idle')
-  const [txHash, setTxHash] = useState<string>()
   const [showTxModal, setShowTxModal] = useState(false)
 
-  // Calculate mock exchange rate
-  const exchangeRate = 1.5 // Mock rate: 1 0G = 1.5 USDCe
-  const priceImpact = 0.15 // Mock price impact
+  // Update tokens when chain changes
+  useEffect(() => {
+    const newDefaultPair = getDefaultTokenPair(chainId)
 
-  // Update toAmount when fromAmount changes (mock calculation)
-  const handleFromAmountChange = useCallback((value: string) => {
-    setFromAmount(value)
-    if (value && !isNaN(parseFloat(value))) {
-      const calculated = (parseFloat(value) * exchangeRate).toFixed(6)
-      setToAmount(calculated)
-    } else {
-      setToAmount('')
-    }
-  }, [exchangeRate])
+    // Reset to default tokens for new chain
+    setFromToken(newDefaultPair.from)
+    setToToken(newDefaultPair.to)
+    setFromAmount('')
+    setToAmount('')
+  }, [chainId])
+
+  // Update toAmount when fromAmount changes (fetch quote)
+  const handleFromAmountChange = useCallback(
+    async (value: string) => {
+      setFromAmount(value)
+
+      if (!value || parseFloat(value) <= 0) {
+        setToAmount('')
+        setExchangeRate(0)
+        setPriceImpact(0)
+        return
+      }
+
+      // Get quote
+      const quote = await getQuote({
+        tokenIn: fromToken,
+        tokenOut: toToken,
+        amountIn: value,
+      })
+
+      if (quote) {
+        setToAmount(quote.amountOut)
+        setExchangeRate(quote.rate)
+        setPriceImpact(quote.priceImpact)
+      }
+    },
+    [fromToken, toToken, getQuote]
+  )
 
   // Switch tokens
   const handleSwitchTokens = () => {
@@ -77,7 +113,6 @@ export function SwapCard({ className }: SwapCardProps) {
   const handleTokenSelect = (token: Token) => {
     if (selectingToken === 'from') {
       if (token.symbol === toToken.symbol) {
-        // Swap tokens if selecting the same
         setToToken(fromToken)
       }
       setFromToken(token)
@@ -88,25 +123,41 @@ export function SwapCard({ className }: SwapCardProps) {
       setToToken(token)
     }
     setSelectingToken(null)
+
+    // Refresh quote
+    if (fromAmount && parseFloat(fromAmount) > 0) {
+      handleFromAmountChange(fromAmount)
+    }
   }
 
-  // Demo swap function
+  // Execute swap
   const handleSwap = async () => {
     if (!fromAmount || parseFloat(fromAmount) <= 0) return
 
     setShowTxModal(true)
-    setTxStatus('pending')
 
-    // Simulate transaction
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    const result = await executeSwap({
+      tokenIn: fromToken,
+      tokenOut: toToken,
+      amountIn: fromAmount,
+      slippagePercent: slippage,
+      deadlineMinutes: deadline,
+    })
 
-    // Mock success (in demo mode)
-    setTxHash('0x' + Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2))
-    setTxStatus('success')
+    if (result) {
+      // Reset form on success
+      setFromAmount('')
+      setToAmount('')
+    }
+  }
 
-    // Reset form
-    setFromAmount('')
-    setToAmount('')
+  // Map hook status to modal status
+  const getTxStatus = (): TxStatus => {
+    if (status === 'approving') return 'pending'
+    if (status === 'swapping') return 'pending'
+    if (status === 'success') return 'success'
+    if (status === 'error') return 'error'
+    return 'idle'
   }
 
   const isValidSwap =
@@ -121,10 +172,16 @@ export function SwapCard({ className }: SwapCardProps) {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Swap</h2>
           <div className="flex items-center gap-2">
-            {IS_DEMO_MODE && (
+            {isDemoMode && (
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs">
                 <AlertCircle className="w-3 h-3" />
                 Demo
+              </div>
+            )}
+            {isMainnet && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                Live
               </div>
             )}
             <SwapSettings
@@ -135,6 +192,18 @@ export function SwapCard({ className }: SwapCardProps) {
             />
           </div>
         </div>
+
+        {/* Mainnet Warning */}
+        {isMainnet && isConnected && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-200/80">
+                You're on <strong>mainnet</strong>. Swaps use real tokens and gas.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* From Token Input */}
         <TokenInput
@@ -178,7 +247,7 @@ export function SwapCard({ className }: SwapCardProps) {
         />
 
         {/* Swap Details */}
-        {fromAmount && parseFloat(fromAmount) > 0 && (
+        {fromAmount && parseFloat(fromAmount) > 0 && exchangeRate > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -187,7 +256,7 @@ export function SwapCard({ className }: SwapCardProps) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Rate</span>
               <span className="text-white">
-                1 {fromToken.symbol} = {exchangeRate} {toToken.symbol}
+                1 {fromToken.symbol} = {exchangeRate.toFixed(4)} {toToken.symbol}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -195,10 +264,10 @@ export function SwapCard({ className }: SwapCardProps) {
                 Price Impact
                 <Info className="w-3 h-3" />
               </div>
-              <span className={cn(
-                priceImpact > 3 ? 'text-accent-red' : 'text-white'
-              )}>
-                {priceImpact}%
+              <span
+                className={cn(priceImpact > 3 ? 'text-accent-red' : 'text-white')}
+              >
+                {priceImpact.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -208,9 +277,16 @@ export function SwapCard({ className }: SwapCardProps) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Min. received</span>
               <span className="text-white">
-                {(parseFloat(toAmount) * (1 - slippage / 100)).toFixed(6)} {toToken.symbol}
+                {(parseFloat(toAmount) * (1 - slippage / 100)).toFixed(6)}{' '}
+                {toToken.symbol}
               </span>
             </div>
+            {!isDemoMode && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/50">Network fee</span>
+                <span className="text-white/70">~0.001 0G</span>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -223,14 +299,18 @@ export function SwapCard({ className }: SwapCardProps) {
               variant="primary"
               size="lg"
               onClick={handleSwap}
-              disabled={!isValidSwap}
+              disabled={!isValidSwap || status === 'swapping' || status === 'approving'}
               className="w-full"
             >
-              {!fromAmount || parseFloat(fromAmount) <= 0
+              {status === 'approving'
+                ? 'Approving...'
+                : status === 'swapping'
+                ? 'Swapping...'
+                : !fromAmount || parseFloat(fromAmount) <= 0
                 ? 'Enter amount'
                 : fromToken.symbol === toToken.symbol
                 ? 'Select different tokens'
-                : IS_DEMO_MODE
+                : isDemoMode
                 ? 'Swap (Demo)'
                 : 'Swap'}
             </GlassButton>
@@ -238,10 +318,15 @@ export function SwapCard({ className }: SwapCardProps) {
         </div>
 
         {/* Demo Notice */}
-        {IS_DEMO_MODE && isConnected && (
+        {isDemoMode && isConnected && (
           <p className="mt-3 text-xs text-white/40 text-center">
-            This is a demo. No real tokens will be swapped.
+            This is a demo on testnet. Switch to mainnet for real swaps.
           </p>
+        )}
+
+        {/* Error display */}
+        {error && (
+          <p className="mt-3 text-xs text-red-400 text-center">{error}</p>
         )}
       </GlassCard>
 
@@ -254,7 +339,7 @@ export function SwapCard({ className }: SwapCardProps) {
         excludeTokens={
           selectingToken === 'from' ? [toToken.symbol] : [fromToken.symbol]
         }
-        tokens={TOKENS}
+        tokens={tokens}
       />
 
       {/* Transaction Status Modal */}
@@ -262,14 +347,22 @@ export function SwapCard({ className }: SwapCardProps) {
         isOpen={showTxModal}
         onClose={() => {
           setShowTxModal(false)
-          setTxStatus('idle')
+          reset()
         }}
-        status={txStatus}
-        txHash={txHash}
-        title={txStatus === 'pending' ? 'Swapping Tokens' : undefined}
+        status={getTxStatus()}
+        txHash={txHash || undefined}
+        title={
+          status === 'approving'
+            ? 'Approving Token'
+            : status === 'swapping'
+            ? 'Swapping Tokens'
+            : undefined
+        }
         message={
-          txStatus === 'success'
+          status === 'success'
             ? `Successfully swapped ${fromAmount} ${fromToken.symbol} for ${toAmount} ${toToken.symbol}`
+            : status === 'error'
+            ? error || 'Transaction failed'
             : undefined
         }
       />

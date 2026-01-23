@@ -1,10 +1,21 @@
-This is a COMPLETE Web3 DeFi demo app with a working swap interface on 0G Galileo Testnet.
+This is a COMPLETE Web3 DeFi app with working swap interface supporting both 0G Mainnet and Testnet.
+
+NETWORKS SUPPORTED:
+- **Mainnet (16661)**: Real swaps via Janie DEX (Uniswap V3 style) - DEFAULT
+- **Testnet (16602)**: Demo mode for development (no DEX deployed)
 
 WHAT'S ALREADY BUILT:
 - Working swap UI with token selection, slippage settings, and transaction status
 - Wallet connection via RainbowKit (MetaMask, WalletConnect, Coinbase)
 - Glassmorphism design system with animated background
-- 0G Galileo Testnet pre-configured (Chain ID: 16602)
+- Network switching between mainnet and testnet
+- Real V3 swap execution on mainnet
+
+DEX CONTRACTS (Mainnet - Janie DEX):
+- Router: 0x8b598a7c136215a95ba0282b4d832b9f9801f2e2
+- Factory: 0x9bdca5798e52e592a08e3b34d3f18eef76af7ef4
+- W0G: 0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c
+- USDC.e: 0x1f3aa82227281ca364bfb3d253b0f1af1da6473e
 
 PRE-BUILT COMPONENTS (use these for modifications):
 - UI: GlassCard, GlassButton, GlassInput, AnimatedBackground, GradientText, Shimmer, NumberFlow
@@ -14,21 +25,24 @@ COMMON CUSTOMIZATIONS:
 - "Change colors" → Edit tailwind.config.js theme.extend.colors
 - "Add token balances" → Use <TokenBalanceList /> component
 - "Add NFT section" → Create new component using GlassCard
-- "Change swap tokens" → Edit src/constants/tokens.ts
-- "Modify animations" → Edit src/components/ui/animated-background.tsx
+- "Add new token" → Edit src/constants/tokens.ts MAINNET_TOKENS or TESTNET_TOKENS
+- "Change default network" → Edit src/config/chains.ts defaultChain
+- "Modify swap settings" → Edit src/components/web3/swap-settings.tsx
 
 NETWORK INFO:
-- Chain ID: 16602
-- RPC: https://evmrpc-testnet.0g.ai
-- Faucet: https://faucet.0g.ai
-- Explorer: https://chainscan-galileo.0g.ai
-- Swap is in DEMO MODE (simulated transactions) until Jaine DEX contracts are available
+- Mainnet Explorer: https://chainscan.0g.ai
+- Testnet Explorer: https://chainscan-galileo.0g.ai
+- Bridge: https://hub.0g.ai/bridge
+- Testnet Faucet: https://faucet.0g.ai
 
 FILE STRUCTURE:
+- src/config/chains.ts → Chain definitions (mainnet + testnet)
+- src/config/wagmi.ts → Wallet configuration
+- src/constants/contracts.ts → DEX contract addresses by network
+- src/constants/tokens.ts → Token lists by network
+- src/constants/abis.ts → Contract ABIs (V3 Router, ERC20)
+- src/hooks/useSwap.ts → Swap execution logic
 - src/components/ui/ → Glassmorphism design components
 - src/components/web3/ → Web3-specific components
-- src/hooks/ → React hooks for Web3 functionality
-- src/constants/ → Token definitions and contract ABIs
-- src/config/ → wagmi and chain configuration
 
 For stock photos, use images from Unsplash with valid URLs.

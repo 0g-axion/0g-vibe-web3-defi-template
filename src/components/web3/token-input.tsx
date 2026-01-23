@@ -22,8 +22,10 @@ export interface TokenInputProps {
   showBalance?: boolean
   /** Show MAX button */
   showMax?: boolean
-  /** Disable input */
+  /** Disable input (only disables amount input, not token selector) */
   disabled?: boolean
+  /** Disable token selector */
+  disableTokenSelect?: boolean
   /** USD value to display */
   usdValue?: string
   className?: string
@@ -53,6 +55,7 @@ export function TokenInput({
   showBalance = true,
   showMax = true,
   disabled = false,
+  disableTokenSelect = false,
   usdValue,
   className,
 }: TokenInputProps) {
@@ -132,12 +135,12 @@ export function TokenInput({
         {/* Token Selector */}
         <button
           onClick={onTokenClick}
-          disabled={disabled}
+          disabled={disableTokenSelect}
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-xl',
             'bg-white/10 hover:bg-white/15 transition-colors',
             'border border-white/10',
-            disabled && 'opacity-50 cursor-not-allowed'
+            disableTokenSelect && 'opacity-50 cursor-not-allowed'
           )}
         >
           <TokenIcon symbol={token.symbol} src={token.logoURI} size={24} />
