@@ -1,138 +1,112 @@
-import { useAccount } from 'wagmi'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useFrameworkReady } from './hooks/useFrameworkReady'
 import { AnimatedBackground } from './components/ui/animated-background'
-import { GlassCard } from './components/ui/glass-card'
-import { GradientText } from './components/ui/gradient-text'
-import { ConnectButton } from './components/web3/connect-button'
-import { AccountInfo } from './components/web3/account-info'
-import { SwapCard } from './components/web3/swap-card'
-import { NetworkBadge } from './components/web3/network-badge'
+import { Header } from './components/layout/Header'
+import { SwapPanel } from './components/dex/SwapPanel'
+import { PoolsPanel } from './components/dex/PoolsPanel'
+import { ChartPanel } from './components/dex/ChartPanel'
+import { PortfolioPanel } from './components/dex/PortfolioPanel'
 import './App.css'
 
-function App() {
-  // CRITICAL: Signal WebContainer that the app is ready
-  useFrameworkReady()
+type Tab = 'swap' | 'pools' | 'chart' | 'portfolio'
 
-  const { isConnected } = useAccount()
+function App() {
+  useFrameworkReady()
+  const [activeTab, setActiveTab] = useState<Tab>('swap')
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated gradient background with floating orbs */}
-      <AnimatedBackground orbCount={4} showGrid />
+    <div className="min-h-screen relative overflow-hidden bg-[#0a0a0f]">
+      {/* Premium gradient background */}
+      <AnimatedBackground orbCount={3} showGrid={false} intensity={0.8} />
+
+      {/* Subtle noise texture overlay */}
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none z-[1]"
+        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }}
+      />
 
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="fixed top-0 left-0 right-0 z-50 p-4"
-      >
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow">
-              <span className="text-white font-bold text-lg">0G</span>
-            </div>
-            <GradientText className="text-xl font-bold hidden sm:block">
-              0G Swap
-            </GradientText>
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-3">
-            <NetworkBadge showName className="hidden sm:flex" />
-            <ConnectButton showBalance showNetwork={false} />
-          </div>
-        </div>
-      </motion.header>
+      <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main Content */}
-      <main className="flex flex-col items-center justify-center min-h-screen pt-24 pb-16 px-4">
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
-            Swap tokens on{' '}
-            <GradientText as="span" variant="default">
-              0G Network
-            </GradientText>
-          </h1>
-          <p className="text-white/60 text-lg md:text-xl max-w-lg mx-auto">
-            The fastest decentralized exchange on the AI-native blockchain
-          </p>
-        </motion.div>
+      <main className="relative z-10 pt-20 pb-8 px-4 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <AnimatePresence mode="wait">
+            {activeTab === 'swap' && (
+              <motion.div
+                key="swap"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col lg:flex-row gap-6 items-start justify-center"
+              >
+                {/* Swap Widget - Center Focus */}
+                <div className="w-full max-w-[480px] mx-auto lg:mx-0">
+                  <SwapPanel />
+                </div>
 
-        {/* Swap Card - THE MAIN FEATURE */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <SwapCard />
-        </motion.div>
+                {/* Chart - Side Panel on Desktop */}
+                <div className="hidden lg:block w-full max-w-[600px]">
+                  <ChartPanel />
+                </div>
+              </motion.div>
+            )}
 
-        {/* Account Info (when connected) */}
-        {isConnected && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <GlassCard className="mt-6 p-4 w-full max-w-md">
-              <h3 className="text-sm font-medium text-white/50 mb-3">
-                Your Account
-              </h3>
-              <AccountInfo showCopy showExplorer />
-            </GlassCard>
-          </motion.div>
-        )}
+            {activeTab === 'pools' && (
+              <motion.div
+                key="pools"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PoolsPanel />
+              </motion.div>
+            )}
 
-        {/* Faucet Link */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-8 text-white/40 text-sm"
-        >
-          Need testnet tokens?{' '}
-          <a
-            href="https://faucet.0g.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
-          >
-            Get 0G from faucet
-          </a>
-        </motion.p>
+            {activeTab === 'chart' && (
+              <motion.div
+                key="chart"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-4xl mx-auto"
+              >
+                <ChartPanel fullWidth />
+              </motion.div>
+            )}
+
+            {activeTab === 'portfolio' && (
+              <motion.div
+                key="portfolio"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PortfolioPanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </main>
 
       {/* Footer */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-        className="fixed bottom-0 left-0 right-0 p-4 text-center"
-      >
-        <div className="flex items-center justify-center gap-4 text-white/30 text-xs">
-          <span>Built on 0G Galileo Testnet</span>
-          <span className="hidden sm:inline">•</span>
-          <span className="hidden sm:inline">Chain ID: 16602</span>
-          <span className="hidden sm:inline">•</span>
-          <a
-            href="https://chainscan-galileo.0g.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-white/50 transition-colors hidden sm:inline"
-          >
-            Explorer
-          </a>
+      <footer className="relative z-10 border-t border-white/5 py-6 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/40">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>0G Network</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <a href="https://docs.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Docs</a>
+            <a href="https://faucet.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Faucet</a>
+            <a href="https://chainscan-galileo.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Explorer</a>
+          </div>
         </div>
-      </motion.footer>
+      </footer>
     </div>
   )
 }
