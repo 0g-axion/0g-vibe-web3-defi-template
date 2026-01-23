@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getChainMetadata, CHAIN_IDS } from '@/config/chains'
 
 /**
  * Utility function to merge Tailwind CSS classes
@@ -108,11 +109,15 @@ export function delay(ms: number): Promise<void> {
 
 /**
  * Generate a block explorer URL for a transaction
+ * @param hash - Transaction hash, address, or block number
+ * @param type - Type of explorer link (tx, address, block)
+ * @param chainId - Chain ID to determine correct explorer URL (defaults to mainnet)
  */
 export function getExplorerUrl(
   hash: string,
   type: 'tx' | 'address' | 'block' = 'tx',
-  explorerUrl = 'https://chainscan-galileo.0g.ai'
+  chainId: number = CHAIN_IDS.MAINNET
 ): string {
+  const { explorerUrl } = getChainMetadata(chainId)
   return `${explorerUrl}/${type}/${hash}`
 }

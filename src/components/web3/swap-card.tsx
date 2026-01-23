@@ -351,6 +351,7 @@ export function SwapCard({ className }: SwapCardProps) {
         }}
         status={getTxStatus()}
         txHash={txHash || undefined}
+        chainId={chainId}
         title={
           status === 'approving'
             ? 'Approving Token'

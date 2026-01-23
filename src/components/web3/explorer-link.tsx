@@ -7,6 +7,8 @@ export interface ExplorerLinkProps {
   value: string
   /** Type of link */
   type?: 'tx' | 'address' | 'block'
+  /** Chain ID for correct explorer URL */
+  chainId?: number
   /** Show full value or truncated */
   showFull?: boolean
   /** Truncation length */
@@ -30,13 +32,14 @@ export interface ExplorerLinkProps {
 export function ExplorerLink({
   value,
   type = 'tx',
+  chainId,
   showFull = false,
   truncateChars = 6,
   showIcon = true,
   label,
   className,
 }: ExplorerLinkProps) {
-  const url = getExplorerUrl(value, type)
+  const url = getExplorerUrl(value, type, chainId)
   const displayText = label || (showFull ? value : formatAddress(value, truncateChars))
 
   return (
@@ -65,9 +68,10 @@ export function ExplorerLink({
  */
 export function TxLink({
   hash,
+  chainId,
   ...props
 }: Omit<ExplorerLinkProps, 'value' | 'type'> & { hash: string }) {
-  return <ExplorerLink value={hash} type="tx" {...props} />
+  return <ExplorerLink value={hash} type="tx" chainId={chainId} {...props} />
 }
 
 /**
@@ -77,9 +81,10 @@ export function TxLink({
  */
 export function AddressLink({
   address,
+  chainId,
   ...props
 }: Omit<ExplorerLinkProps, 'value' | 'type'> & { address: string }) {
-  return <ExplorerLink value={address} type="address" {...props} />
+  return <ExplorerLink value={address} type="address" chainId={chainId} {...props} />
 }
 
 export default ExplorerLink

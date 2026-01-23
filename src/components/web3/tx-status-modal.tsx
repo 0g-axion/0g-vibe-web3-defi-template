@@ -16,6 +16,8 @@ export interface TxStatusModalProps {
   status: TxStatus
   /** Transaction hash */
   txHash?: string
+  /** Chain ID for explorer link */
+  chainId?: number
   /** Title text */
   title?: string
   /** Description/message */
@@ -71,6 +73,7 @@ export function TxStatusModal({
   onClose,
   status,
   txHash,
+  chainId,
   title,
   message,
   error,
@@ -155,7 +158,7 @@ export function TxStatusModal({
               {/* Transaction Hash Link */}
               {txHash && (
                 <a
-                  href={getExplorerUrl(txHash, 'tx')}
+                  href={getExplorerUrl(txHash, 'tx', chainId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(

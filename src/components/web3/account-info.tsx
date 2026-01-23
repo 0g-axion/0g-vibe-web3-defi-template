@@ -1,4 +1,4 @@
-import { useAccount, useBalance } from 'wagmi'
+import { useAccount, useBalance, useChainId } from 'wagmi'
 import { Copy, ExternalLink, Check } from 'lucide-react'
 import { useState } from 'react'
 import { formatAddress, formatBalance, getExplorerUrl } from '@/lib/utils'
@@ -32,6 +32,7 @@ export function AccountInfo({
   className,
 }: AccountInfoProps) {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
   const { data: balance, isLoading } = useBalance({ address })
   const [copied, setCopied] = useState(false)
 
@@ -95,7 +96,7 @@ export function AccountInfo({
               size="sm"
               className="!p-1.5"
               onClick={() =>
-                window.open(getExplorerUrl(address, 'address'), '_blank')
+                window.open(getExplorerUrl(address, 'address', chainId), '_blank')
               }
             >
               <ExternalLink className="w-3.5 h-3.5" />
