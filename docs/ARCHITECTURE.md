@@ -407,89 +407,12 @@ https://api.goldsky.com/api/public/{PROJECT_ID}/subgraphs/{SUBGRAPH_NAME}/{VERSI
 
 ### Deploy to Vercel
 
-#### Option 1: Vercel Dashboard
 1. **Fork/Clone** this repository
 2. **Import to Vercel** at [vercel.com/new](https://vercel.com/new)
 3. **Set environment variables** in Vercel dashboard:
    - Go to Project Settings → Environment Variables
    - Add `VITE_SUBGRAPH_URL_MAINNET` with your subgraph URL
 4. **Deploy** - Vercel auto-detects Vite and builds correctly
-
-#### Option 2: Vercel CLI (No Dashboard)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Login (one-time)
-vercel login
-
-# Deploy with env var in one command
-vercel --build-env VITE_SUBGRAPH_URL_MAINNET="https://api.goldsky.com/api/public/YOUR_PROJECT_ID/subgraphs/jaine-v3-goldsky/0.0.2/gn"
-
-# Or for production deployment
-vercel --prod --build-env VITE_SUBGRAPH_URL_MAINNET="your-url"
-```
-
-#### Option 3: Set Env Vars via CLI First
-
-```bash
-# Add env var to project (interactive)
-vercel env add VITE_SUBGRAPH_URL_MAINNET production
-
-# Or non-interactive (pipe the value)
-echo "your-subgraph-url" | vercel env add VITE_SUBGRAPH_URL_MAINNET production
-
-# Then deploy normally
-vercel --prod
-```
-
-#### Option 4: Using .env.local File
-
-```bash
-# Create .env.local with your values
-echo 'VITE_SUBGRAPH_URL_MAINNET=your-url' > .env.local
-
-# Pull existing env vars (if project is linked)
-vercel env pull
-
-# Deploy (Vercel reads .env.local during build)
-vercel --prod
-```
-
-#### Option 5: GitHub Actions CI/CD
-
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Vercel
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Vercel CLI
-        run: npm i -g vercel
-
-      - name: Deploy to Vercel
-        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --build-env VITE_SUBGRAPH_URL_MAINNET=${{ secrets.SUBGRAPH_URL }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-```
-
-**GitHub Secrets needed:**
-- `VERCEL_TOKEN` - From [vercel.com/account/tokens](https://vercel.com/account/tokens)
-- `VERCEL_ORG_ID` - From `.vercel/project.json` after `vercel link`
-- `VERCEL_PROJECT_ID` - From `.vercel/project.json` after `vercel link`
-- `SUBGRAPH_URL` - Your Goldsky subgraph URL
 
 **How it works:**
 - Vite exposes `VITE_*` env vars to client code via `import.meta.env`
