@@ -8,14 +8,45 @@ This document explains the architecture, configuration system, and contribution 
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Architecture Principles](#architecture-principles)
-3. [Configuration System](#configuration-system)
-4. [Data Sources](#data-sources)
-5. [Feature Flags](#feature-flags)
-6. [Directory Structure](#directory-structure)
-7. [How to Extend](#how-to-extend)
-8. [LLM/AI Agent Guidelines](#llmai-agent-guidelines)
+1. [Quick Start](#quick-start)
+2. [Overview](#overview)
+3. [Architecture Principles](#architecture-principles)
+4. [Configuration System](#configuration-system)
+5. [Data Sources](#data-sources)
+6. [Feature Flags](#feature-flags)
+7. [Directory Structure](#directory-structure)
+8. [Deployment](#deployment)
+9. [How to Extend](#how-to-extend)
+10. [LLM/AI Agent Guidelines](#llmai-agent-guidelines)
+
+---
+
+## Quick Start
+
+### Local Development
+
+```bash
+# 1. Clone and install
+git clone <repo-url>
+cd bolt-web3-defi-template
+npm install
+
+# 2. Set up environment variables
+cp .env.example .env
+
+# 3. Edit .env with your subgraph URL
+# VITE_SUBGRAPH_URL_MAINNET=https://api.goldsky.com/api/public/{PROJECT_ID}/subgraphs/{NAME}/{VERSION}/gn
+
+# 4. Run development server
+npm run dev
+```
+
+### Deploy to Vercel (One-Click)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/user/repo&env=VITE_SUBGRAPH_URL_MAINNET&envDescription=Subgraph%20URL%20for%20DEX%20data&envLink=https://github.com/user/repo/blob/main/docs/ARCHITECTURE.md#environment-variables)
+
+When deploying, Vercel will prompt you for:
+- `VITE_SUBGRAPH_URL_MAINNET` - Your Goldsky/Graph subgraph URL
 
 ---
 
@@ -356,6 +387,78 @@ src/
 └── lib/                    # Utilities
     └── utils.ts
 ```
+
+---
+
+## Deployment
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_SUBGRAPH_URL_MAINNET` | Yes | Goldsky/Graph subgraph URL for 0G Mainnet |
+| `VITE_SUBGRAPH_URL_TESTNET` | No | Subgraph URL for 0G Testnet (if available) |
+| `VITE_WALLETCONNECT_PROJECT_ID` | No | WalletConnect Cloud project ID |
+
+**Subgraph URL format (Goldsky):**
+```
+https://api.goldsky.com/api/public/{PROJECT_ID}/subgraphs/{SUBGRAPH_NAME}/{VERSION}/gn
+```
+
+### Deploy to Vercel
+
+1. **Fork/Clone** this repository
+2. **Import to Vercel** at [vercel.com/new](https://vercel.com/new)
+3. **Set environment variables** in Vercel dashboard:
+   - Go to Project Settings → Environment Variables
+   - Add `VITE_SUBGRAPH_URL_MAINNET` with your subgraph URL
+4. **Deploy** - Vercel auto-detects Vite and builds correctly
+
+**How it works:**
+- Vite exposes `VITE_*` env vars to client code via `import.meta.env`
+- Vercel injects env vars at build time
+- No server-side code needed - fully static deployment
+
+### Deploy to Other Platforms
+
+**Netlify:**
+```toml
+# netlify.toml
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  VITE_SUBGRAPH_URL_MAINNET = "your-url-here"
+```
+
+**Docker:**
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY . .
+RUN npm install
+ARG VITE_SUBGRAPH_URL_MAINNET
+ENV VITE_SUBGRAPH_URL_MAINNET=$VITE_SUBGRAPH_URL_MAINNET
+RUN npm run build
+# Serve with nginx or similar
+```
+
+**Static hosting (manual build):**
+```bash
+# Build with env vars
+VITE_SUBGRAPH_URL_MAINNET="your-url" npm run build
+
+# Upload dist/ folder to any static host
+```
+
+### Without a Subgraph
+
+If `VITE_SUBGRAPH_URL_MAINNET` is not set:
+- App runs in **Demo Mode**
+- Pools panel shows "Demo Mode" badge
+- Charts display placeholder data
+- Swap interface still works (connects to DEX contracts directly)
 
 ---
 
