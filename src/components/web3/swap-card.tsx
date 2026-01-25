@@ -1,3 +1,8 @@
+/**
+ * @deprecated This component is deprecated. Use SwapPanel from './swap-panel' instead.
+ * SwapPanel has the new premium UI design while preserving the real swap functionality.
+ * This file is kept for reference only.
+ */
 import { useState, useCallback, useEffect } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import { motion } from 'framer-motion'

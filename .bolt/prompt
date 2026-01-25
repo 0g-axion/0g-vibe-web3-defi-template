@@ -5,11 +5,14 @@ NETWORKS SUPPORTED:
 - **Testnet (16602)**: Demo mode for development (no DEX deployed)
 
 WHAT'S ALREADY BUILT:
-- Working swap UI with token selection, slippage settings, and transaction status
-- Wallet connection via RainbowKit (MetaMask, WalletConnect, Coinbase)
-- Glassmorphism design system with animated background
-- Network switching between mainnet and testnet
-- Real V3 swap execution on mainnet
+- Tab navigation: Swap, Pools, Chart, Portfolio
+- Working swap UI with real V3 execution on mainnet
+- Token selection with balance display and MAX button
+- Slippage and deadline settings
+- Transaction status modal with explorer links
+- Wallet connection via RainbowKit
+- Premium glassmorphism design with animated background
+- Config-driven feature toggles
 
 DEX CONTRACTS (Mainnet - Janie DEX):
 - Router: 0x8b598a7c136215a95ba0282b4d832b9f9801f2e2
@@ -17,17 +20,37 @@ DEX CONTRACTS (Mainnet - Janie DEX):
 - W0G: 0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c
 - USDC.e: 0x1f3aa82227281ca364bfb3d253b0f1af1da6473e
 
-PRE-BUILT COMPONENTS (use these for modifications):
-- UI: GlassCard, GlassButton, GlassInput, AnimatedBackground, GradientText, Shimmer, NumberFlow
-- Web3: ConnectButton, AccountInfo, NetworkBadge, TokenIcon, TokenBalance, TokenBalanceList, TokenInput, TokenSelect, TokenSelectModal, SwapCard, SwapSettings, TxStatusModal, ExplorerLink
+PRE-BUILT COMPONENTS:
+
+UI Components (src/components/ui/):
+- GlassCard, GlassButton, GlassInput - Glassmorphism design system
+- Shimmer - Loading skeleton
+- AnimatedBackground - Gradient mesh background
+- GradientText, NumberFlow - Text effects
+
+Web3 Components (src/components/web3/):
+- Primitives: TokenIcon, TokenBalance, TokenInput, TokenInputField, ConnectButton, NetworkBadge, ExplorerLink, TxStatusModal, SwapSettings, SwapSettingsPanel, TokenSelectModal
+- Feature Panels (-panel suffix): SwapPanel, PoolsPanel, ChartPanel, PortfolioPanel
+- Layout: Header
+
+NAMING CONVENTIONS:
+- Feature panels use `-panel` suffix: swap-panel.tsx, pools-panel.tsx
+- All files in kebab-case
+- To add new features: create web3/[feature]-panel.tsx
+
+FEATURE CONFIG (src/config/features.ts):
+- Toggle features via FeatureProvider in main.tsx
+- Available toggles: swap, pools, chart, portfolio
+- Sub-toggles: showChart, showPriceImpact, showNetworkFee, animatedBackground, etc.
 
 COMMON CUSTOMIZATIONS:
 - "Change colors" → Edit tailwind.config.js theme.extend.colors
 - "Add token balances" → Use <TokenBalanceList /> component
-- "Add NFT section" → Create new component using GlassCard
+- "Add new panel" → Create web3/[name]-panel.tsx, add to features.ts
 - "Add new token" → Edit src/constants/tokens.ts MAINNET_TOKENS or TESTNET_TOKENS
 - "Change default network" → Edit src/config/chains.ts defaultChain
-- "Modify swap settings" → Edit src/components/web3/swap-settings.tsx
+- "Disable a feature" → Set enabled: false in FeatureProvider config
+- "Swap only mode" → Use MINIMAL_FEATURES preset from features.ts
 
 NETWORK INFO:
 - Mainnet Explorer: https://chainscan.0g.ai
@@ -37,12 +60,22 @@ NETWORK INFO:
 
 FILE STRUCTURE:
 - src/config/chains.ts → Chain definitions (mainnet + testnet)
+- src/config/features.ts → Feature configuration system
 - src/config/wagmi.ts → Wallet configuration
 - src/constants/contracts.ts → DEX contract addresses by network
 - src/constants/tokens.ts → Token lists by network
-- src/constants/abis.ts → Contract ABIs (V3 Router, ERC20)
+- src/constants/pools.ts → Pool configurations by network
+- src/constants/abis.ts → Contract ABIs (V3 Router, ERC20, Pool)
 - src/hooks/useSwap.ts → Swap execution logic
+- src/hooks/usePools.ts → Pool data fetching
+- src/hooks/usePortfolio.ts → Portfolio balance tracking
+- src/providers/feature-provider.tsx → Feature config context
 - src/components/ui/ → Glassmorphism design components
-- src/components/web3/ → Web3-specific components
+- src/components/web3/ → All Web3 components (primitives + panels)
+
+DATA MODES:
+- Mainnet: Real swap execution, real token balances, demo chart/pools data
+- Testnet: Demo mode for all features (no DEX deployed)
+- "Demo Data" badges shown when using mock data
 
 For stock photos, use images from Unsplash with valid URLs.

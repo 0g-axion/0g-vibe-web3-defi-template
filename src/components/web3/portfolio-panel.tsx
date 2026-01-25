@@ -1,9 +1,17 @@
+/**
+ * PortfolioPanel Component
+ *
+ * Portfolio holdings and transaction activity display.
+ * Uses real on-chain balances via usePortfolio hook.
+ * Falls back to demo data when no holdings detected.
+ */
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, History, PieChart } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, History, PieChart, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePortfolio, type TokenHolding as PortfolioHolding } from '@/hooks/usePortfolio'
 
 interface TokenHolding {
   symbol: string
@@ -204,13 +212,42 @@ function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
   )
 }
 
+// Convert portfolio holding to display format
+function convertHolding(holding: PortfolioHolding, totalValue: number): TokenHolding {
+  return {
+    symbol: holding.token.symbol,
+    name: holding.token.name,
+    balance: parseFloat(holding.formattedBalance),
+    value: holding.usdValue,
+    price: holding.usdValue / parseFloat(holding.formattedBalance) || 0,
+    change24h: 0, // Would need price oracle for real 24h change
+    allocation: totalValue > 0 ? (holding.usdValue / totalValue) * 100 : 0,
+  }
+}
+
 export function PortfolioPanel() {
   const { isConnected, address } = useAccount()
   const [activeTab, setActiveTab] = useState<'holdings' | 'activity'>('holdings')
 
-  const totalValue = MOCK_HOLDINGS.reduce((sum, h) => sum + h.value, 0)
-  const totalChange = MOCK_HOLDINGS.reduce((sum, h) => sum + (h.value * h.change24h / 100), 0)
-  const totalChangePercent = (totalChange / totalValue) * 100
+  // Fetch real portfolio data
+  const {
+    holdings: realHoldings,
+    totalValue: realTotalValue,
+    isLoading,
+    hasHoldings,
+  } = usePortfolio()
+
+  // Use real data if available, otherwise fall back to mock
+  const isDemoMode = !hasHoldings || realTotalValue === 0
+  const displayHoldings: TokenHolding[] = isDemoMode
+    ? MOCK_HOLDINGS
+    : realHoldings.map(h => convertHolding(h, realTotalValue))
+
+  const totalValue = isDemoMode
+    ? MOCK_HOLDINGS.reduce((sum, h) => sum + h.value, 0)
+    : realTotalValue
+  const totalChange = displayHoldings.reduce((sum, h) => sum + (h.value * h.change24h / 100), 0)
+  const totalChangePercent = totalValue > 0 ? (totalChange / totalValue) * 100 : 0
   const isPositive = totalChangePercent >= 0
 
   if (!isConnected) {
@@ -279,11 +316,19 @@ export function PortfolioPanel() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-white/70 text-sm font-mono">
-                {address?.slice(0, 6)}...{address?.slice(-4)}
-              </span>
+            <div className="flex items-center gap-3">
+              {isDemoMode && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <AlertCircle className="w-3 h-3 text-amber-400" />
+                  <span className="text-amber-400 text-xs font-medium">Demo Data</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-white/70 text-sm font-mono">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -292,21 +337,23 @@ export function PortfolioPanel() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Allocation</span>
               <div className="flex items-center gap-3">
-                {MOCK_HOLDINGS.map((h) => (
+                {displayHoldings.slice(0, 5).map((h, i) => (
                   <div key={h.symbol} className="flex items-center gap-1.5">
                     <div className={cn(
                       "w-2 h-2 rounded-full",
-                      h.symbol === '0G' ? "bg-violet-500" :
-                      h.symbol === 'ETH' ? "bg-cyan-500" :
-                      "bg-emerald-500"
+                      i === 0 ? "bg-violet-500" :
+                      i === 1 ? "bg-cyan-500" :
+                      i === 2 ? "bg-emerald-500" :
+                      i === 3 ? "bg-amber-500" :
+                      "bg-pink-500"
                     )} />
-                    <span className="text-white/60 text-xs">{h.symbol} {h.allocation}%</span>
+                    <span className="text-white/60 text-xs">{h.symbol} {h.allocation.toFixed(0)}%</span>
                   </div>
                 ))}
               </div>
             </div>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden flex">
-              {MOCK_HOLDINGS.map((h) => (
+              {displayHoldings.slice(0, 5).map((h, i) => (
                 <motion.div
                   key={h.symbol}
                   initial={{ width: 0 }}
@@ -314,9 +361,11 @@ export function PortfolioPanel() {
                   transition={{ duration: 0.8, delay: 0.2 }}
                   className={cn(
                     "h-full",
-                    h.symbol === '0G' ? "bg-gradient-to-r from-violet-500 to-violet-400" :
-                    h.symbol === 'ETH' ? "bg-gradient-to-r from-cyan-500 to-cyan-400" :
-                    "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                    i === 0 ? "bg-gradient-to-r from-violet-500 to-violet-400" :
+                    i === 1 ? "bg-gradient-to-r from-cyan-500 to-cyan-400" :
+                    i === 2 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                    i === 3 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                    "bg-gradient-to-r from-pink-500 to-pink-400"
                   )}
                 />
               ))}
@@ -360,9 +409,16 @@ export function PortfolioPanel() {
         <div className="relative p-5">
           {activeTab === 'holdings' ? (
             <div className="space-y-2">
-              {MOCK_HOLDINGS.map((holding, index) => (
-                <HoldingCard key={holding.symbol} holding={holding} index={index} />
-              ))}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-3 text-white/50">Loading balances...</span>
+                </div>
+              ) : (
+                displayHoldings.map((holding, index) => (
+                  <HoldingCard key={holding.symbol} holding={holding} index={index} />
+                ))
+              )}
             </div>
           ) : (
             <div className="space-y-1">
@@ -376,3 +432,5 @@ export function PortfolioPanel() {
     </motion.div>
   )
 }
+
+export default PortfolioPanel

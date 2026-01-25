@@ -101,14 +101,24 @@ export const hasDexSupport = (chainId: number): boolean => {
 // Export chain metadata for UI components
 export const getChainMetadata = (chainId: number) => {
   const chain = chainId === CHAIN_IDS.MAINNET ? zgMainnet : zgTestnet
+  const isMainnet = chainId === CHAIN_IDS.MAINNET
   return {
     id: chain.id,
-    name: chain.name,
+    name: isMainnet ? '0G Mainnet' : '0G Testnet',
     nativeCurrency: chain.nativeCurrency,
     faucetUrl: chainId === CHAIN_IDS.TESTNET ? 'https://faucet.0g.ai' : 'https://hub.0g.ai/bridge',
     explorerUrl: chain.blockExplorers.default.url,
     rpcUrl: chain.rpcUrls.default.http[0],
     hasDex: hasDexSupport(chainId),
+    isTestnet: chain.testnet,
+    // Feature availability
+    hasPools: hasDexSupport(chainId), // Pools require DEX
+    hasChart: true, // Chart works with mock data
+    hasPortfolio: true, // Portfolio always shows balances
+    // Explorer paths
+    explorerName: '0G Explorer',
+    txPath: '/tx/',
+    addressPath: '/address/',
   }
 }
 

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useChainId } from 'wagmi'
 import { useFrameworkReady } from './hooks/useFrameworkReady'
 import { AnimatedBackground } from './components/ui/animated-background'
-import { Header } from './components/layout/Header'
-import { SwapPanel } from './components/dex/SwapPanel'
-import { PoolsPanel } from './components/dex/PoolsPanel'
-import { ChartPanel } from './components/dex/ChartPanel'
-import { PortfolioPanel } from './components/dex/PortfolioPanel'
+import { Header } from './components/web3/header'
+import { SwapPanel } from './components/web3/swap-panel'
+import { PoolsPanel } from './components/web3/pools-panel'
+import { ChartPanel } from './components/web3/chart-panel'
+import { PortfolioPanel } from './components/web3/portfolio-panel'
+import { getChainMetadata } from './config/chains'
+import { useFeatures } from './providers/feature-provider'
 import './App.css'
 
 type Tab = 'swap' | 'pools' | 'chart' | 'portfolio'
@@ -14,11 +17,16 @@ type Tab = 'swap' | 'pools' | 'chart' | 'portfolio'
 function App() {
   useFrameworkReady()
   const [activeTab, setActiveTab] = useState<Tab>('swap')
+  const chainId = useChainId()
+  const { explorerUrl, faucetUrl } = getChainMetadata(chainId)
+  const features = useFeatures()
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#0a0a0f]">
       {/* Premium gradient background */}
-      <AnimatedBackground orbCount={3} showGrid={false} intensity={0.8} />
+      {features.ui.animatedBackground && (
+        <AnimatedBackground orbCount={3} showGrid={false} intensity={0.8} />
+      )}
 
       {/* Subtle noise texture overlay */}
       <div className="fixed inset-0 opacity-[0.02] pointer-events-none z-[1]"
@@ -32,7 +40,7 @@ function App() {
       <main className="relative z-10 pt-20 pb-8 px-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
-            {activeTab === 'swap' && (
+            {activeTab === 'swap' && features.swap.enabled && (
               <motion.div
                 key="swap"
                 initial={{ opacity: 0, y: 20 }}
@@ -46,14 +54,16 @@ function App() {
                   <SwapPanel />
                 </div>
 
-                {/* Chart - Side Panel on Desktop */}
-                <div className="hidden lg:block w-full max-w-[600px]">
-                  <ChartPanel />
-                </div>
+                {/* Chart - Side Panel on Desktop (config-driven) */}
+                {features.swap.showChart && features.chart.enabled && (
+                  <div className="hidden lg:block w-full max-w-[600px]">
+                    <ChartPanel />
+                  </div>
+                )}
               </motion.div>
             )}
 
-            {activeTab === 'pools' && (
+            {activeTab === 'pools' && features.pools.enabled && (
               <motion.div
                 key="pools"
                 initial={{ opacity: 0, y: 20 }}
@@ -65,7 +75,7 @@ function App() {
               </motion.div>
             )}
 
-            {activeTab === 'chart' && (
+            {activeTab === 'chart' && features.chart.enabled && (
               <motion.div
                 key="chart"
                 initial={{ opacity: 0, y: 20 }}
@@ -78,7 +88,7 @@ function App() {
               </motion.div>
             )}
 
-            {activeTab === 'portfolio' && (
+            {activeTab === 'portfolio' && features.portfolio.enabled && (
               <motion.div
                 key="portfolio"
                 initial={{ opacity: 0, y: 20 }}
@@ -102,8 +112,10 @@ function App() {
           </div>
           <div className="flex items-center gap-6">
             <a href="https://docs.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Docs</a>
-            <a href="https://faucet.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Faucet</a>
-            <a href="https://chainscan-galileo.0g.ai" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Explorer</a>
+            {features.ui.showFaucetLink && (
+              <a href={faucetUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Faucet</a>
+            )}
+            <a href={explorerUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Explorer</a>
           </div>
         </div>
       </footer>

@@ -1,8 +1,18 @@
+/**
+ * Header Component
+ *
+ * App header with navigation tabs and wallet connection.
+ * Config-driven tabs based on feature settings.
+ * Fixed network display to show actual connected network.
+ */
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { ArrowLeftRight, LayoutGrid, LineChart, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CHAIN_IDS, getChainMetadata } from '@/config/chains'
+import { useFeatures } from '@/providers/feature-provider'
 
 type Tab = 'swap' | 'pools' | 'chart' | 'portfolio'
 
@@ -11,15 +21,24 @@ interface HeaderProps {
   onTabChange: (tab: Tab) => void
 }
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'swap', label: 'Swap', icon: <ArrowLeftRight className="w-4 h-4" /> },
-  { id: 'pools', label: 'Pools', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'chart', label: 'Chart', icon: <LineChart className="w-4 h-4" /> },
-  { id: 'portfolio', label: 'Portfolio', icon: <Wallet className="w-4 h-4" /> },
+const allTabs: { id: Tab; label: string; icon: React.ReactNode; feature: 'swap' | 'pools' | 'chart' | 'portfolio' }[] = [
+  { id: 'swap', label: 'Swap', icon: <ArrowLeftRight className="w-4 h-4" />, feature: 'swap' },
+  { id: 'pools', label: 'Pools', icon: <LayoutGrid className="w-4 h-4" />, feature: 'pools' },
+  { id: 'chart', label: 'Chart', icon: <LineChart className="w-4 h-4" />, feature: 'chart' },
+  { id: 'portfolio', label: 'Portfolio', icon: <Wallet className="w-4 h-4" />, feature: 'portfolio' },
 ]
 
 export function Header({ activeTab, onTabChange }: HeaderProps) {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const isMainnet = chainId === CHAIN_IDS.MAINNET
+  const { name: networkName } = getChainMetadata(chainId)
+  const features = useFeatures()
+
+  // Filter tabs based on feature config
+  const tabs = useMemo(() => {
+    return allTabs.filter(tab => features[tab.feature].enabled)
+  }, [features])
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -107,19 +126,35 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
 
         {/* Wallet Connect */}
         <div className="flex items-center gap-3">
-          {/* Network indicator */}
+          {/* Network indicator - Dynamic based on chainId */}
           {isConnected && (
             <motion.div
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+              className={cn(
+                "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border",
+                isMainnet
+                  ? "bg-amber-500/10 border-amber-500/20"
+                  : "bg-emerald-500/10 border-emerald-500/20"
+              )}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                <span className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  isMainnet ? "bg-amber-400" : "bg-emerald-400"
+                )} />
+                <span className={cn(
+                  "relative inline-flex rounded-full h-2 w-2",
+                  isMainnet ? "bg-amber-400" : "bg-emerald-400"
+                )} />
               </span>
-              <span className="text-emerald-400 text-xs font-medium">0G Testnet</span>
+              <span className={cn(
+                "text-xs font-medium",
+                isMainnet ? "text-amber-400" : "text-emerald-400"
+              )}>
+                {networkName}
+              </span>
             </motion.div>
           )}
 
@@ -167,3 +202,5 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
     </header>
   )
 }
+
+export default Header

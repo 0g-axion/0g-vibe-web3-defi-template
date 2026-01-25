@@ -1,8 +1,17 @@
+/**
+ * TokenInputField Component
+ *
+ * Premium token input with real balance fetching.
+ * Combines new UI design from dex/TokenInputField with working balance logic.
+ */
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
+import { useAccount, useBalance, useReadContract } from 'wagmi'
 import type { Token } from '@/constants/tokens'
-import { cn } from '@/lib/utils'
+import { ERC20_ABI } from '@/constants/abis'
+import { formatBalance, cn } from '@/lib/utils'
+import { Shimmer } from '@/components/ui/shimmer'
 
 interface TokenInputFieldProps {
   label: string
@@ -24,12 +33,41 @@ export function TokenInputField({
   disabled
 }: TokenInputFieldProps) {
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const usdValue = value ? (parseFloat(value) * (token.symbol === '0G' ? 0.05 : 1850)).toFixed(2) : '0.00'
+  const { address } = useAccount()
+
+  // Native balance
+  const { data: nativeBalance, isLoading: nativeLoading } = useBalance({
+    address,
+    query: { enabled: token.isNative && !!address },
+  })
+
+  // ERC-20 balance
+  const { data: erc20Balance, isLoading: erc20Loading } = useReadContract({
+    address: token.address as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !token.isNative && !!address && token.address !== 'native' },
+  })
+
+  const isLoadingBalance = token.isNative ? nativeLoading : erc20Loading
+  const balance = token.isNative
+    ? nativeBalance ? formatBalance(nativeBalance.value, nativeBalance.decimals) : '0'
+    : erc20Balance ? formatBalance(erc20Balance as bigint, token.decimals) : '0'
+
+  // Calculate USD value (mock for now, will be replaced with real price in Phase 2)
+  const usdValue = value ? (parseFloat(value) * (token.symbol === '0G' ? 0.05 : token.symbol.includes('USD') ? 1 : 1850)).toFixed(2) : '0.00'
 
   const handleTokenClick = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
       onTokenClick(rect)
+    }
+  }
+
+  const handleMaxClick = () => {
+    if (balance && balance !== '0') {
+      onChange(balance)
     }
   }
 
@@ -40,12 +78,17 @@ export function TokenInputField({
     )}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-white/50">{label}</span>
-        {showMax && (
+        {showMax && address && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-white/50">Balance: 0.00</span>
+            {isLoadingBalance ? (
+              <Shimmer width={60} height={16} rounded="sm" />
+            ) : (
+              <span className="text-sm text-white/50">Balance: {balance}</span>
+            )}
             <button
-              onClick={() => onChange('0')}
-              className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors"
+              onClick={handleMaxClick}
+              disabled={!balance || balance === '0'}
+              className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               MAX
             </button>
@@ -116,3 +159,5 @@ export function TokenInputField({
     </div>
   )
 }
+
+export default TokenInputField

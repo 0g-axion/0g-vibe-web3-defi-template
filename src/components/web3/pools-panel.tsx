@@ -1,61 +1,19 @@
+/**
+ * PoolsPanel Component
+ *
+ * Liquidity pools display with real data from DEX subgraph.
+ * Shows TVL, volume, fees, and estimated APR for all pools.
+ *
+ * Config-driven: Uses chain metadata for explorer URLs.
+ */
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Plus, TrendingUp, Droplets, Info, ExternalLink } from 'lucide-react'
+import { Plus, TrendingUp, Droplets, Info, ExternalLink, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface Pool {
-  id: string
-  token0: { symbol: string; name: string }
-  token1: { symbol: string; name: string }
-  tvl: number
-  apr: number
-  volume24h: number
-  fee: number
-  myLiquidity?: number
-}
-
-// Mock pool data
-const MOCK_POOLS: Pool[] = [
-  {
-    id: '1',
-    token0: { symbol: '0G', name: '0G Token' },
-    token1: { symbol: 'USDC', name: 'USD Coin' },
-    tvl: 2450000,
-    apr: 24.5,
-    volume24h: 890000,
-    fee: 0.3,
-    myLiquidity: 1250,
-  },
-  {
-    id: '2',
-    token0: { symbol: '0G', name: '0G Token' },
-    token1: { symbol: 'ETH', name: 'Ethereum' },
-    tvl: 1850000,
-    apr: 18.2,
-    volume24h: 620000,
-    fee: 0.3,
-  },
-  {
-    id: '3',
-    token0: { symbol: 'USDC', name: 'USD Coin' },
-    token1: { symbol: 'USDT', name: 'Tether' },
-    tvl: 5200000,
-    apr: 8.5,
-    volume24h: 2100000,
-    fee: 0.05,
-  },
-  {
-    id: '4',
-    token0: { symbol: 'ETH', name: 'Ethereum' },
-    token1: { symbol: 'USDC', name: 'USD Coin' },
-    tvl: 3800000,
-    apr: 15.8,
-    volume24h: 1450000,
-    fee: 0.3,
-  },
-]
+import { useSubgraphPools, type PoolData } from '@/hooks/useSubgraphPools'
+import { getChainMetadata } from '@/config/chains'
 
 function formatNumber(num: number): string {
   if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`
@@ -63,12 +21,23 @@ function formatNumber(num: number): string {
   return `$${num.toFixed(2)}`
 }
 
-function PoolCard({ pool, index }: { pool: Pool; index: number }) {
+function formatAPR(apr: number): string {
+  if (apr >= 100) return `${apr.toFixed(0)}%`
+  return `${apr.toFixed(1)}%`
+}
+
+interface PoolCardProps {
+  pool: PoolData
+  index: number
+  explorerUrl: string
+}
+
+function PoolCard({ pool, index, explorerUrl }: PoolCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
+      transition={{ delay: index * 0.05 }}
       className="group relative rounded-2xl bg-white/[0.03] border border-white/5 hover:border-violet-500/30 transition-all duration-300 overflow-hidden"
     >
       {/* Hover gradient */}
@@ -90,19 +59,19 @@ function PoolCard({ pool, index }: { pool: Pool; index: number }) {
               <div className="text-white font-semibold">
                 {pool.token0.symbol}/{pool.token1.symbol}
               </div>
-              <div className="text-white/40 text-xs">{pool.fee}% fee</div>
+              <div className="text-white/40 text-xs">{pool.feePercent}% fee</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {pool.myLiquidity && (
-              <span className="px-2 py-1 rounded-lg bg-violet-500/20 text-violet-400 text-xs font-medium">
-                Your LP
-              </span>
-            )}
-            <button className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+            <a
+              href={`${explorerUrl}/address/${pool.address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+            >
               <ExternalLink className="w-4 h-4" />
-            </button>
+            </a>
           </div>
         </div>
 
@@ -120,23 +89,19 @@ function PoolCard({ pool, index }: { pool: Pool; index: number }) {
               <TrendingUp className="w-3 h-3" />
               APR
             </div>
-            <div className="text-emerald-400 font-medium">{pool.apr}%</div>
+            <div className="text-emerald-400 font-medium">{formatAPR(pool.apr)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-white/40 text-xs mb-1">24h Vol</div>
+            <div className="text-white/40 text-xs mb-1">Volume</div>
             <div className="text-white font-medium">{formatNumber(pool.volume24h)}</div>
           </div>
         </div>
 
-        {/* Your Position (if any) */}
-        {pool.myLiquidity && (
-          <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 mb-4">
-            <div className="flex items-center justify-between">
-              <span className="text-white/60 text-sm">Your Liquidity</span>
-              <span className="text-white font-medium">{formatNumber(pool.myLiquidity)}</span>
-            </div>
-          </div>
-        )}
+        {/* Additional Stats */}
+        <div className="flex items-center justify-between text-xs text-white/40 mb-4">
+          <span>Fees: {formatNumber(pool.fees24h)}</span>
+          <span>{pool.txCount.toLocaleString()} txs</span>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
@@ -162,14 +127,22 @@ function PoolCard({ pool, index }: { pool: Pool; index: number }) {
 
 export function PoolsPanel() {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
   const [filter, setFilter] = useState<'all' | 'my'>('all')
 
-  const filteredPools = filter === 'my'
-    ? MOCK_POOLS.filter(p => p.myLiquidity)
-    : MOCK_POOLS
+  // Get chain metadata for explorer URLs
+  const chainMetadata = getChainMetadata(chainId)
 
-  const totalTVL = MOCK_POOLS.reduce((sum, p) => sum + p.tvl, 0)
-  const totalVolume = MOCK_POOLS.reduce((sum, p) => sum + p.volume24h, 0)
+  // Fetch real pool data from subgraph
+  const { pools, stats, isLoading, hasSubgraph, refetch } = useSubgraphPools(20)
+
+  // Filter pools (my positions would need additional logic)
+  const filteredPools = filter === 'my' ? [] : pools
+
+  // Use real stats or fallback
+  const totalTVL = stats?.totalTVL || 0
+  const totalVolume = stats?.totalVolume || 0
+  const poolCount = stats?.totalPools || pools.length
 
   return (
     <motion.div
@@ -181,8 +154,8 @@ export function PoolsPanel() {
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total TVL', value: formatNumber(totalTVL), icon: Droplets },
-          { label: '24h Volume', value: formatNumber(totalVolume), icon: TrendingUp },
-          { label: 'Active Pools', value: MOCK_POOLS.length.toString(), icon: Info },
+          { label: 'Total Volume', value: formatNumber(totalVolume), icon: TrendingUp },
+          { label: 'Active Pools', value: poolCount.toString(), icon: Info },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -205,21 +178,44 @@ export function PoolsPanel() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2 bg-white/5 rounded-xl p-1">
-          {(['all', 'my'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                filter === f
-                  ? "bg-violet-500 text-white"
-                  : "text-white/50 hover:text-white"
-              )}
-            >
-              {f === 'all' ? 'All Pools' : 'My Positions'}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          {/* Data status badge */}
+          {hasSubgraph ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-emerald-400 text-xs font-medium">Live Data</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <span className="text-amber-400 text-xs font-medium">Demo Mode</span>
+            </div>
+          )}
+
+          {/* Refresh button */}
+          <button
+            onClick={() => refetch()}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={cn('w-4 h-4 text-white/50', isLoading && 'animate-spin')}
+            />
+          </button>
+
+          <div className="flex items-center gap-2 bg-white/5 rounded-xl p-1">
+            {(['all', 'my'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                  filter === f ? 'bg-violet-500 text-white' : 'text-white/50 hover:text-white'
+                )}
+              >
+                {f === 'all' ? 'All Pools' : 'My Positions'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {isConnected && (
@@ -258,32 +254,52 @@ export function PoolsPanel() {
             </ConnectButton.Custom>
           </div>
         </div>
+      ) : isLoading ? (
+        <div className="relative rounded-3xl bg-[#12121a] border border-white/5 p-12 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-white/50">Loading pools...</span>
+          </div>
+        </div>
       ) : filteredPools.length === 0 ? (
         <div className="relative rounded-3xl bg-[#12121a] border border-white/5 p-12 text-center">
           <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 to-transparent pointer-events-none rounded-3xl" />
           <div className="relative">
             <Droplets className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Positions Found</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {filter === 'my' ? 'No Positions Found' : 'No Pools Available'}
+            </h3>
             <p className="text-white/50 mb-6">
-              You don't have any liquidity positions yet
+              {filter === 'my'
+                ? "You don't have any liquidity positions yet"
+                : 'No pools are available on this network'}
             </p>
-            <motion.button
-              onClick={() => setFilter('all')}
-              className="px-6 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/15 transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              View All Pools
-            </motion.button>
+            {filter === 'my' && (
+              <motion.button
+                onClick={() => setFilter('all')}
+                className="px-6 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/15 transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                View All Pools
+              </motion.button>
+            )}
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredPools.map((pool, index) => (
-            <PoolCard key={pool.id} pool={pool} index={index} />
+            <PoolCard
+              key={pool.id}
+              pool={pool}
+              index={index}
+              explorerUrl={chainMetadata.explorerUrl}
+            />
           ))}
         </div>
       )}
     </motion.div>
   )
 }
+
+export default PoolsPanel
