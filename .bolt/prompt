@@ -1,81 +1,301 @@
-This is a COMPLETE Web3 DeFi app with working swap interface supporting both 0G Mainnet and Testnet.
+# 0G Web3 DeFi Template - LLM Context
 
-NETWORKS SUPPORTED:
-- **Mainnet (16661)**: Real swaps via Janie DEX (Uniswap V3 style) - DEFAULT
-- **Testnet (16602)**: Demo mode for development (no DEX deployed)
+This is a COMPLETE Web3 DeFi application template for 0G Network with working swap interface.
 
-WHAT'S ALREADY BUILT:
-- Tab navigation: Swap, Pools, Chart, Portfolio
-- Working swap UI with real V3 execution on mainnet
-- Token selection with balance display and MAX button
-- Slippage and deadline settings
-- Transaction status modal with explorer links
-- Wallet connection via RainbowKit
-- Premium glassmorphism design with animated background
-- Config-driven feature toggles
+## CRITICAL: Feature Request Handling
 
-DEX CONTRACTS (Mainnet - Janie DEX):
-- Router: 0x8b598a7c136215a95ba0282b4d832b9f9801f2e2
-- Factory: 0x9bdca5798e52e592a08e3b34d3f18eef76af7ef4
-- W0G: 0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c
-- USDC.e: 0x1f3aa82227281ca364bfb3d253b0f1af1da6473e
+When user requests a feature, follow this decision flow:
 
-PRE-BUILT COMPONENTS:
+### IF user wants CHARTS or POOL DATA:
+1. Check if `VITE_SUBGRAPH_URL_MAINNET` is set in .env
+2. If NOT set, ask: "Charts/pools require a subgraph URL. Do you have a Goldsky/Graph subgraph deployed? If not, the app will show demo data."
+3. If they don't have one, charts will work with "Demo Data" badge shown
 
-UI Components (src/components/ui/):
-- GlassCard, GlassButton, GlassInput - Glassmorphism design system
-- Shimmer - Loading skeleton
-- AnimatedBackground - Gradient mesh background
-- GradientText, NumberFlow - Text effects
+### IF user wants MOBILE WALLET support:
+1. Check if `VITE_WALLETCONNECT_PROJECT_ID` is set
+2. If NOT set, ask: "For mobile wallet connections, you need a WalletConnect Project ID from https://cloud.walletconnect.com - do you have one?"
 
-Web3 Components (src/components/web3/):
-- Primitives: TokenIcon, TokenBalance, TokenInput, TokenInputField, ConnectButton, NetworkBadge, ExplorerLink, TxStatusModal, SwapSettings, SwapSettingsPanel, TokenSelectModal
-- Feature Panels (-panel suffix): SwapPanel, PoolsPanel, ChartPanel, PortfolioPanel
-- Layout: Header
+### IF user wants ONLY SWAP (no pools/charts/portfolio):
+Use `MINIMAL_FEATURES` preset in main.tsx:
 
-NAMING CONVENTIONS:
-- Feature panels use `-panel` suffix: swap-panel.tsx, pools-panel.tsx
-- All files in kebab-case
-- To add new features: create web3/[feature]-panel.tsx
+    import { MINIMAL_FEATURES } from './config/features'
+    <FeatureProvider config={MINIMAL_FEATURES}>
 
-FEATURE CONFIG (src/config/features.ts):
-- Toggle features via FeatureProvider in main.tsx
-- Available toggles: swap, pools, chart, portfolio
-- Sub-toggles: showChart, showPriceImpact, showNetworkFee, animatedBackground, etc.
+### IF user wants to DISABLE a specific feature:
+Set `enabled: false` in FeatureProvider config for that feature
 
-COMMON CUSTOMIZATIONS:
-- "Change colors" → Edit tailwind.config.js theme.extend.colors
-- "Add token balances" → Use <TokenBalanceList /> component
-- "Add new panel" → Create web3/[name]-panel.tsx, add to features.ts
-- "Add new token" → Edit src/constants/tokens.ts MAINNET_TOKENS or TESTNET_TOKENS
-- "Change default network" → Edit src/config/chains.ts defaultChain
-- "Disable a feature" → Set enabled: false in FeatureProvider config
-- "Swap only mode" → Use MINIMAL_FEATURES preset from features.ts
+---
 
-NETWORK INFO:
-- Mainnet Explorer: https://chainscan.0g.ai
-- Testnet Explorer: https://chainscan-galileo.0g.ai
-- Bridge: https://hub.0g.ai/bridge
-- Testnet Faucet: https://faucet.0g.ai
+## NETWORKS SUPPORTED
 
-FILE STRUCTURE:
-- src/config/chains.ts → Chain definitions (mainnet + testnet)
-- src/config/features.ts → Feature configuration system
-- src/config/wagmi.ts → Wallet configuration
-- src/constants/contracts.ts → DEX contract addresses by network
-- src/constants/tokens.ts → Token lists by network
-- src/constants/pools.ts → Pool configurations by network
-- src/constants/abis.ts → Contract ABIs (V3 Router, ERC20, Pool)
-- src/hooks/useSwap.ts → Swap execution logic
-- src/hooks/usePools.ts → Pool data fetching
-- src/hooks/usePortfolio.ts → Portfolio balance tracking
-- src/providers/feature-provider.tsx → Feature config context
-- src/components/ui/ → Glassmorphism design components
-- src/components/web3/ → All Web3 components (primitives + panels)
+| Network | Chain ID | DEX | Subgraph | Mode |
+|---------|----------|-----|----------|------|
+| **Mainnet** | 16661 | Janie DEX (V3) | Optional | Real swaps |
+| **Testnet** | 16602 | None | None | Demo only |
 
-DATA MODES:
-- Mainnet: Real swap execution, real token balances, demo chart/pools data
-- Testnet: Demo mode for all features (no DEX deployed)
-- "Demo Data" badges shown when using mock data
+**Auto-behavior by chain:**
+- Testnet: Pools auto-disabled, swap runs in demo mode
+- No subgraph: Charts show demo data with warning badge
+
+---
+
+## ENVIRONMENT VARIABLES (.env)
+
+Required for real chart/pool data:
+
+    VITE_SUBGRAPH_URL_MAINNET=https://api.goldsky.com/api/public/...
+
+Optional:
+
+    VITE_SUBGRAPH_URL_TESTNET=       # Testnet subgraph (usually not available)
+    VITE_WALLETCONNECT_PROJECT_ID=   # For mobile wallets (from cloud.walletconnect.com)
+    VITE_ANALYTICS_ID=               # Analytics tracking
+
+---
+
+## FEATURE CONFIGURATION SYSTEM
+
+### Feature Presets
+
+**DEFAULT_FEATURES** - All features enabled (current default)
+**MINIMAL_FEATURES** - Swap only, everything else disabled
+
+### All Available Toggles
+
+Located in `src/config/features.ts`:
+
+    swap:
+      enabled: boolean              // Show swap tab
+      showChart: boolean            // Mini chart next to swap panel
+      showPriceImpact: boolean      // Price impact percentage
+      showNetworkFee: boolean       // Gas estimate (mainnet only)
+      showMinReceived: boolean      // Minimum output after slippage
+
+    pools:
+      enabled: boolean              // Show pools tab
+      showMyPositions: boolean      // User's LP positions
+      allowCreatePool: boolean      // Create new pool button
+
+    chart:
+      enabled: boolean              // Show chart tab
+      defaultTimeRange: '1H' | '24H' | '7D' | '30D' | '1Y'
+      showMockDataWarning: boolean  // "Demo Data" badge
+
+    portfolio:
+      enabled: boolean              // Show portfolio tab
+      showHoldings: boolean         // Token holdings list
+      showActivity: boolean         // Recent transactions
+
+    ui:
+      showNetworkBadge: boolean     // Network indicator in header
+      showFaucetLink: boolean       // Link to testnet faucet
+      animatedBackground: boolean   // Gradient orb animation
+      showMainnetWarning: boolean   // Real money warning on mainnet
+
+### How to Use Feature Config
+
+In main.tsx for custom configuration:
+
+    import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './config/features'
+
+    <FeatureProvider config={mergeFeatures(DEFAULT_FEATURES, {
+      pools: { enabled: false },
+      chart: { enabled: false },
+    })}>
+      <App />
+    </FeatureProvider>
+
+---
+
+## DEX CONTRACTS (Mainnet - Janie DEX)
+
+| Contract | Address |
+|----------|---------|
+| Router | `0x8b598a7c136215a95ba0282b4d832b9f9801f2e2` |
+| Factory | `0x9bdca5798e52e592a08e3b34d3f18eef76af7ef4` |
+| W0G (Wrapped 0G) | `0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c` |
+| USDC.e | `0x1f3aa82227281ca364bfb3d253b0f1af1da6473e` |
+
+---
+
+## TOKENS CONFIGURATION
+
+### Adding a New Token
+
+Edit `src/constants/tokens.ts` with required fields:
+
+    {
+      address: '0x...',             // Contract address (use 'native' for 0G)
+      symbol: 'TOKEN',              // Display symbol
+      name: 'Token Name',           // Full name
+      decimals: 18,                 // Token decimals (USDC = 6, most = 18)
+      logoURI: '/tokens/token.svg', // Local path or https:// URL
+    }
+
+**Token Arrays by Chain:**
+- `MAINNET_TOKENS` - Real tokens on mainnet
+- `TESTNET_TOKENS` - Test tokens on testnet
+
+---
+
+## POOLS CONFIGURATION
+
+### Known Pools (src/constants/pools.ts)
+
+Example pool configuration:
+
+    {
+      address: '0xa9e824eddb9677fb2189ab9c439238a83695c091',
+      token0: W0G_ADDRESS,
+      token1: USDC_ADDRESS,
+      fee: 3000,  // 0.3% fee tier (V3 format: 500=0.05%, 3000=0.3%, 10000=1%)
+    }
+
+### Featured Pools for Charts (src/config/subgraph.ts)
+
+The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
+
+---
+
+## DATA SOURCES
+
+| Data Type | Source | Fallback |
+|-----------|--------|----------|
+| Token balances | On-chain (Wagmi) | - |
+| Swap quotes | Pool contract slot0 | Mock rate |
+| Pool TVL/Volume | Subgraph | Demo data |
+| Price charts | Subgraph | Empty/Demo |
+| Swap execution | Router contract | Demo mode (testnet) |
+
+**"Demo Data" badge appears when:**
+- No subgraph URL configured
+- On testnet (no DEX)
+- Subgraph query fails
+
+---
+
+## AVAILABLE HOOKS
+
+| Hook | Purpose | Returns |
+|------|---------|---------|
+| `useSwap()` | Execute swaps | status, txHash, getQuote, executeSwap |
+| `usePools()` | Pool data | pools, isDexAvailable, isLoading |
+| `usePortfolio()` | Holdings | holdings, totalValue, hasHoldings |
+| `useChartData()` | Price charts | data (OHLC), isLoading, hasSubgraph |
+| `useCurrentPrice()` | Latest price | Query with current price |
+| `useSwapQuote()` | Demo quotes | quote, isLoading, refetch |
+| `useSubgraphPools()` | Top pools | topPools from subgraph |
+| `useTokenList()` | Token browser | tokens, search, filter |
+| `useTokenBalance()` | Single balance | balance, formatted |
+| `useWalletConnection()` | Wallet state | isConnected, address, chainId |
+| `useWalletInfo()` | Wallet meta | ens, avatar, displayName |
+| `useFeatures()` | Feature config | All feature flags |
+| `useFrameworkReady()` | Init state | Framework ready boolean |
+
+---
+
+## COMPONENT STRUCTURE
+
+### Feature Panels (src/components/web3/)
+- `swap-panel.tsx` - Token swap interface
+- `pools-panel.tsx` - Liquidity pool browser
+- `chart-panel.tsx` - Price charts
+- `portfolio-panel.tsx` - Token holdings
+
+### Web3 Primitives (src/components/web3/)
+- `TokenIcon`, `TokenBalance`, `TokenInput`, `TokenInputField`
+- `TokenSelectModal`, `TokenSelect`
+- `ConnectButton`, `NetworkBadge`, `AccountInfo`
+- `ExplorerLink`, `TxStatusModal`
+- `SwapSettings`, `SwapSettingsPanel`, `SwapCard`
+
+### UI Components (src/components/ui/)
+- `GlassCard`, `GlassButton`, `GlassInput` - Glassmorphism design
+- `AnimatedBackground` - Gradient orbs
+- `Shimmer` - Loading skeleton
+- `GradientText`, `NumberFlow` - Text effects
+
+### Naming Convention
+- Feature panels: `[feature]-panel.tsx`
+- All files: kebab-case
+- To add new feature: create `web3/[name]-panel.tsx`, add to features.ts
+
+---
+
+## COMMON CUSTOMIZATIONS
+
+| Request | Solution |
+|---------|----------|
+| "Change colors" | Edit `tailwind.config.js` theme.extend.colors |
+| "Add token" | Add to `src/constants/tokens.ts` MAINNET_TOKENS or TESTNET_TOKENS |
+| "Add pool" | Add to `src/constants/pools.ts` and optionally `src/config/subgraph.ts` |
+| "Swap only mode" | Use `MINIMAL_FEATURES` preset |
+| "Disable pools" | Set `pools: { enabled: false }` in FeatureProvider |
+| "Change default network" | Edit `src/config/chains.ts` defaultChain |
+| "Add new panel" | Create `web3/[name]-panel.tsx`, add tab in Header, add feature toggle |
+| "Custom slippage" | User sets in SwapSettings, default is 0.5% |
+
+---
+
+## FILE STRUCTURE
+
+    src/
+    ├── config/
+    │   ├── chains.ts          # Chain definitions (mainnet + testnet)
+    │   ├── features.ts        # Feature toggle system
+    │   ├── subgraph.ts        # Subgraph URLs and featured pools
+    │   └── wagmi.ts           # Wallet configuration
+    ├── constants/
+    │   ├── contracts.ts       # DEX contract addresses
+    │   ├── tokens.ts          # Token lists by network
+    │   ├── pools.ts           # Pool configurations
+    │   └── abis.ts            # Contract ABIs (V3 Router, ERC20, Pool)
+    ├── hooks/                 # All React hooks (see hooks table above)
+    ├── services/
+    │   └── subgraph.ts        # GraphQL queries for DEX data
+    ├── providers/
+    │   └── feature-provider.tsx  # Feature config context
+    └── components/
+        ├── ui/                # Design system (Glass*, Shimmer, etc.)
+        └── web3/              # All Web3 components
+
+---
+
+## TRANSACTION FLOW
+
+### Swap Execution
+1. User selects tokens and amount
+2. Quote fetched from pool contract (slot0)
+3. If token needs approval, approval transaction first
+4. Swap transaction via router
+5. TxStatusModal shows: pending, then success/error
+6. Explorer link provided
+
+### Settings
+- **Slippage**: 0.1% - 50% (default 0.5%)
+- **Deadline**: 1-60 minutes (default 20 min)
+
+---
+
+## NETWORK INFO
+
+| | Mainnet | Testnet |
+|---|---------|---------|
+| Explorer | https://chainscan.0g.ai | https://chainscan-galileo.0g.ai |
+| RPC | https://evmrpc.0g.ai | https://evmrpc-testnet.0g.ai |
+| Faucet | - | https://faucet.0g.ai |
+| Bridge | https://hub.0g.ai/bridge | - |
+
+---
+
+## SUBGRAPH SCHEMA
+
+Uses Uniswap V3 compatible schema. Key entities:
+- `Pool` - pool address, token0, token1, liquidity, sqrtPrice
+- `PoolDayData` - daily OHLC, volume, TVL
+- `PoolHourData` - hourly OHLC, volume
+- `Token` - address, symbol, decimals, volume
+
+---
 
 For stock photos, use images from Unsplash with valid URLs.
