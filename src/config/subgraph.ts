@@ -2,27 +2,36 @@
  * Subgraph Configuration for 0G Networks
  *
  * Config-driven architecture for AMM data sources.
- * To switch to a different AMM, update this file:
- * 1. Change SUBGRAPH_URLS to point to the new subgraph
- * 2. Update DEFAULT_CHART_POOLS with the main trading pairs
- * 3. Update FEATURED_POOLS with pools to highlight
+ * Subgraph URLs are loaded from environment variables for security.
  *
- * The rest of the application will automatically use the new data source.
+ * Setup:
+ * 1. Copy .env.example to .env
+ * 2. Set VITE_SUBGRAPH_URL_MAINNET with your Goldsky/Graph URL
+ *
+ * To switch AMMs, also update:
+ * - DEFAULT_CHART_POOLS with the main trading pairs
+ * - FEATURED_POOLS with pools to highlight
+ * - AMM_CONFIG with branding info
  */
 
 import { CHAIN_IDS } from './chains'
 
 /**
  * Subgraph URL configuration by chain
- * Set to null for chains without subgraph support
+ *
+ * URLs loaded from environment variables:
+ * - VITE_SUBGRAPH_URL_MAINNET: 0G Mainnet subgraph
+ * - VITE_SUBGRAPH_URL_TESTNET: 0G Testnet subgraph (optional)
+ *
+ * For Goldsky, URL format is:
+ * https://api.goldsky.com/api/public/{PROJECT_ID}/subgraphs/{NAME}/{VERSION}/gn
  */
 export const SUBGRAPH_URLS: Record<number, string | null> = {
-  // 0G Mainnet - Janie DEX (Uniswap V3 style)
-  [CHAIN_IDS.MAINNET]:
-    'https://api.goldsky.com/api/public/YOUR_GOLDSKY_PROJECT_ID/subgraphs/jaine-v3-goldsky/0.0.2/gn',
+  // 0G Mainnet - Load from env var
+  [CHAIN_IDS.MAINNET]: import.meta.env.VITE_SUBGRAPH_URL_MAINNET || null,
 
-  // 0G Testnet - No subgraph available
-  [CHAIN_IDS.TESTNET]: null,
+  // 0G Testnet - Load from env var (optional)
+  [CHAIN_IDS.TESTNET]: import.meta.env.VITE_SUBGRAPH_URL_TESTNET || null,
 }
 
 /**

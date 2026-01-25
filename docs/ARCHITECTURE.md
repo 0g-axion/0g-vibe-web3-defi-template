@@ -136,14 +136,25 @@ export function getChainMetadata(chainId: number) {
 
 ### Subgraph Configuration (`src/config/subgraph.ts`)
 
-Defines AMM data sources per chain.
+Defines AMM data sources per chain. **URLs are loaded from environment variables for security.**
 
 ```typescript
-// Subgraph URLs by chain
+// Subgraph URLs loaded from environment variables
 export const SUBGRAPH_URLS: Record<number, string | null> = {
-  [CHAIN_IDS.MAINNET]: 'https://api.goldsky.com/api/public/project_.../subgraphs/jaine-v3-goldsky/0.0.2/gn',
-  [CHAIN_IDS.TESTNET]: null,  // No subgraph on testnet
+  [CHAIN_IDS.MAINNET]: import.meta.env.VITE_SUBGRAPH_URL_MAINNET || null,
+  [CHAIN_IDS.TESTNET]: import.meta.env.VITE_SUBGRAPH_URL_TESTNET || null,
 }
+```
+
+**Setup:**
+```bash
+# Copy .env.example to .env
+cp .env.example .env
+
+# Edit .env and set your subgraph URL
+# For Goldsky: https://api.goldsky.com/api/public/{PROJECT_ID}/subgraphs/{NAME}/{VERSION}/gn
+VITE_SUBGRAPH_URL_MAINNET=https://your-subgraph-url
+```
 
 // Default pool for chart display
 export const DEFAULT_CHART_POOLS: Record<number, string | null> = {
