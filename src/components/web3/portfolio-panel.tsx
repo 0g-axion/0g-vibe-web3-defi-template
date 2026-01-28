@@ -2,8 +2,7 @@
  * PortfolioPanel Component
  *
  * Portfolio holdings and transaction activity display.
- * Uses real on-chain balances via usePortfolio hook.
- * Falls back to demo data when no holdings detected.
+ * Uses real on-chain balances and subgraph prices.
  */
 import { useState } from 'react'
 import { motion } from 'framer-motion'
@@ -12,6 +11,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, History, PieChart, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePortfolio, type TokenHolding as PortfolioHolding } from '@/hooks/usePortfolio'
+import { useUserTransactions, type UserTransaction } from '@/hooks/useUserTransactions'
 
 interface TokenHolding {
   symbol: string
@@ -23,89 +23,14 @@ interface TokenHolding {
   allocation: number
 }
 
-interface Transaction {
-  id: string
-  type: 'swap' | 'add' | 'remove'
-  token0: string
-  token1: string
-  amount0: number
-  amount1: number
-  timestamp: Date
-  status: 'completed' | 'pending' | 'failed'
-}
-
-// Mock portfolio data
-const MOCK_HOLDINGS: TokenHolding[] = [
-  {
-    symbol: '0G',
-    name: '0G Token',
-    balance: 15000,
-    value: 750,
-    price: 0.05,
-    change24h: 5.2,
-    allocation: 45,
-  },
-  {
-    symbol: 'ETH',
-    name: 'Ethereum',
-    balance: 0.5,
-    value: 925,
-    price: 1850,
-    change24h: -1.8,
-    allocation: 35,
-  },
-  {
-    symbol: 'USDC',
-    name: 'USD Coin',
-    balance: 500,
-    value: 500,
-    price: 1.0,
-    change24h: 0,
-    allocation: 20,
-  },
-]
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    type: 'swap',
-    token0: '0G',
-    token1: 'USDC',
-    amount0: 1000,
-    amount1: 50,
-    timestamp: new Date(Date.now() - 3600000),
-    status: 'completed',
-  },
-  {
-    id: '2',
-    type: 'add',
-    token0: '0G',
-    token1: 'ETH',
-    amount0: 5000,
-    amount1: 0.125,
-    timestamp: new Date(Date.now() - 86400000),
-    status: 'completed',
-  },
-  {
-    id: '3',
-    type: 'swap',
-    token0: 'ETH',
-    token1: '0G',
-    amount0: 0.1,
-    amount1: 3700,
-    timestamp: new Date(Date.now() - 172800000),
-    status: 'completed',
-  },
-]
-
 function formatValue(num: number): string {
   if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`
   if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`
   return `$${num.toFixed(2)}`
 }
 
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+function formatTimeAgo(timestamp: number): string {
+  const seconds = Math.floor((Date.now() / 1000) - timestamp)
   if (seconds < 60) return `${seconds}s ago`
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
@@ -153,7 +78,7 @@ function HoldingCard({ holding, index }: { holding: TokenHolding; index: number 
   )
 }
 
-function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
+function TransactionRow({ tx, index }: { tx: UserTransaction; index: number }) {
   const getTypeIcon = () => {
     switch (tx.type) {
       case 'swap':
@@ -173,11 +98,18 @@ function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
     }
   }
 
+  const formatAmount = (amount: number) => {
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(2)}M`
+    if (amount >= 1000) return `${(amount / 1000).toFixed(2)}K`
+    if (amount >= 1) return amount.toFixed(2)
+    return amount.toFixed(4)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
+      transition={{ delay: index * 0.05 }}
       className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors"
     >
       <div className="flex items-center gap-3">
@@ -192,19 +124,14 @@ function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
         <div>
           <div className="text-white text-sm font-medium">{getTypeLabel()}</div>
           <div className="text-white/40 text-xs">
-            {tx.amount0} {tx.token0} → {tx.amount1.toFixed(4)} {tx.token1}
+            {formatAmount(tx.amount0)} {tx.token0Symbol} → {formatAmount(tx.amount1)} {tx.token1Symbol}
           </div>
         </div>
       </div>
 
       <div className="text-right">
-        <div className={cn(
-          "text-xs px-2 py-0.5 rounded-full",
-          tx.status === 'completed' ? "bg-emerald-500/20 text-emerald-400" :
-          tx.status === 'pending' ? "bg-amber-500/20 text-amber-400" :
-          "bg-red-500/20 text-red-400"
-        )}>
-          {tx.status}
+        <div className="text-white/60 text-xs">
+          ${tx.amountUSD.toFixed(2)}
         </div>
         <div className="text-white/40 text-xs mt-1">{formatTimeAgo(tx.timestamp)}</div>
       </div>
@@ -232,23 +159,27 @@ export function PortfolioPanel() {
   // Fetch real portfolio data
   const {
     holdings: realHoldings,
-    totalValue: realTotalValue,
+    totalValue,
     isLoading,
     hasHoldings,
+    hasRealPrices,
   } = usePortfolio()
 
-  // Use real data if available, otherwise fall back to mock
-  const isDemoMode = !hasHoldings || realTotalValue === 0
-  const displayHoldings: TokenHolding[] = isDemoMode
-    ? MOCK_HOLDINGS
-    : realHoldings.map(h => convertHolding(h, realTotalValue))
+  // Fetch real transaction history
+  const {
+    transactions,
+    isLoading: txLoading,
+    hasTransactions,
+    hasSubgraph,
+  } = useUserTransactions(20)
 
-  const totalValue = isDemoMode
-    ? MOCK_HOLDINGS.reduce((sum, h) => sum + h.value, 0)
-    : realTotalValue
-  const totalChange = displayHoldings.reduce((sum, h) => sum + (h.value * h.change24h / 100), 0)
-  const totalChangePercent = totalValue > 0 ? (totalChange / totalValue) * 100 : 0
-  const isPositive = totalChangePercent >= 0
+  // Convert holdings to display format
+  const displayHoldings: TokenHolding[] = realHoldings.map(h => convertHolding(h, totalValue))
+
+  // 24h change would need historical price data - showing 0 for now
+  const totalChange = 0
+  const totalChangePercent = 0
+  const isPositive = true
 
   if (!isConnected) {
     return (
@@ -317,10 +248,15 @@ export function PortfolioPanel() {
             </div>
 
             <div className="flex items-center gap-3">
-              {isDemoMode && (
+              {hasRealPrices ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 text-xs font-medium">Live Prices</span>
+                </div>
+              ) : (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <AlertCircle className="w-3 h-3 text-amber-400" />
-                  <span className="text-amber-400 text-xs font-medium">Demo Data</span>
+                  <span className="text-amber-400 text-xs font-medium">Estimated Prices</span>
                 </div>
               )}
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5">
@@ -414,6 +350,12 @@ export function PortfolioPanel() {
                   <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
                   <span className="ml-3 text-white/50">Loading balances...</span>
                 </div>
+              ) : !hasHoldings ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Wallet className="w-8 h-8 text-white/20 mb-2" />
+                  <p className="text-white/50 text-sm">No tokens found</p>
+                  <p className="text-white/30 text-xs mt-1">Your token balances will appear here</p>
+                </div>
               ) : (
                 displayHoldings.map((holding, index) => (
                   <HoldingCard key={holding.symbol} holding={holding} index={index} />
@@ -422,9 +364,28 @@ export function PortfolioPanel() {
             </div>
           ) : (
             <div className="space-y-1">
-              {MOCK_TRANSACTIONS.map((tx, index) => (
-                <TransactionRow key={tx.id} tx={tx} index={index} />
-              ))}
+              {txLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-3 text-white/50">Loading transactions...</span>
+                </div>
+              ) : !hasSubgraph ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <AlertCircle className="w-8 h-8 text-amber-400 mb-2" />
+                  <p className="text-white/50 text-sm">Subgraph not configured</p>
+                  <p className="text-white/30 text-xs mt-1">Transaction history requires subgraph</p>
+                </div>
+              ) : !hasTransactions ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <History className="w-8 h-8 text-white/20 mb-2" />
+                  <p className="text-white/50 text-sm">No transactions yet</p>
+                  <p className="text-white/30 text-xs mt-1">Your swaps and liquidity actions will appear here</p>
+                </div>
+              ) : (
+                transactions.map((tx, index) => (
+                  <TransactionRow key={tx.id} tx={tx} index={index} />
+                ))
+              )}
             </div>
           )}
         </div>

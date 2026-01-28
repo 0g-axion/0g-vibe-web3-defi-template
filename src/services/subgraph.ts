@@ -73,6 +73,68 @@ export interface FactoryStats {
   totalValueLockedUSD: string
 }
 
+export interface Bundle {
+  id: string
+  ethPriceUSD: string
+}
+
+export interface TokenPrice {
+  id: string
+  symbol: string
+  derivedETH: string
+  priceUSD: number
+}
+
+export interface SubgraphSwap {
+  id: string
+  timestamp: string
+  origin: string
+  amount0: string
+  amount1: string
+  amountUSD: string
+  pool: {
+    token0: SubgraphToken
+    token1: SubgraphToken
+  }
+}
+
+export interface SubgraphMint {
+  id: string
+  timestamp: string
+  origin: string
+  amount0: string
+  amount1: string
+  amountUSD: string
+  pool: {
+    token0: SubgraphToken
+    token1: SubgraphToken
+  }
+}
+
+export interface SubgraphBurn {
+  id: string
+  timestamp: string
+  origin: string
+  amount0: string
+  amount1: string
+  amountUSD: string
+  pool: {
+    token0: SubgraphToken
+    token1: SubgraphToken
+  }
+}
+
+export interface UserTransaction {
+  id: string
+  type: 'swap' | 'add' | 'remove'
+  timestamp: number
+  token0Symbol: string
+  token1Symbol: string
+  amount0: number
+  amount1: number
+  amountUSD: number
+}
+
 /**
  * GraphQL query helper
  * Requires chainId to get the correct subgraph URL from config
@@ -232,6 +294,134 @@ export async function fetchTopTokens(
 }
 
 /**
+ * Fetch ETH/native token price in USD from bundle
+ */
+export async function fetchBundlePrice(
+  chainId: number = CHAIN_IDS.MAINNET
+): Promise<number | null> {
+  if (!hasSubgraphSupport(chainId)) {
+    return null
+  }
+
+  const data = await querySubgraph<{ bundle: Bundle | null }>(
+    chainId,
+    `
+    {
+      bundle(id: "1") {
+        id
+        ethPriceUSD
+      }
+    }
+  `
+  )
+
+  if (data.bundle) {
+    return parseFloat(data.bundle.ethPriceUSD)
+  }
+  return null
+}
+
+/**
+ * Fetch token prices by addresses
+ * Returns USD price for each token using derivedETH * ethPriceUSD
+ */
+export async function fetchTokenPrices(
+  chainId: number = CHAIN_IDS.MAINNET,
+  tokenAddresses: string[]
+): Promise<Map<string, number>> {
+  const priceMap = new Map<string, number>()
+
+  if (!hasSubgraphSupport(chainId) || tokenAddresses.length === 0) {
+    return priceMap
+  }
+
+  // Build query for multiple tokens
+  const addressList = tokenAddresses
+    .map(a => `"${a.toLowerCase()}"`)
+    .join(', ')
+
+  const [bundleData, tokensData] = await Promise.all([
+    querySubgraph<{ bundle: Bundle | null }>(
+      chainId,
+      `{ bundle(id: "1") { ethPriceUSD } }`
+    ),
+    querySubgraph<{ tokens: Array<{ id: string; symbol: string; derivedETH: string }> }>(
+      chainId,
+      `
+      {
+        tokens(where: { id_in: [${addressList}] }) {
+          id
+          symbol
+          derivedETH
+        }
+      }
+    `
+    ),
+  ])
+
+  const ethPriceUSD = bundleData.bundle
+    ? parseFloat(bundleData.bundle.ethPriceUSD)
+    : 0
+
+  for (const token of tokensData.tokens) {
+    const derivedETH = parseFloat(token.derivedETH)
+    const priceUSD = derivedETH * ethPriceUSD
+    priceMap.set(token.id.toLowerCase(), priceUSD)
+  }
+
+  return priceMap
+}
+
+/**
+ * Fetch all token prices (for portfolio valuation)
+ */
+export async function fetchAllTokenPrices(
+  chainId: number = CHAIN_IDS.MAINNET
+): Promise<Map<string, number>> {
+  const priceMap = new Map<string, number>()
+
+  if (!hasSubgraphSupport(chainId)) {
+    return priceMap
+  }
+
+  const [bundleData, tokensData] = await Promise.all([
+    querySubgraph<{ bundle: Bundle | null }>(
+      chainId,
+      `{ bundle(id: "1") { ethPriceUSD } }`
+    ),
+    querySubgraph<{ tokens: Array<{ id: string; symbol: string; derivedETH: string }> }>(
+      chainId,
+      `
+      {
+        tokens(first: 100, orderBy: totalValueLockedUSD, orderDirection: desc) {
+          id
+          symbol
+          derivedETH
+        }
+      }
+    `
+    ),
+  ])
+
+  const ethPriceUSD = bundleData.bundle
+    ? parseFloat(bundleData.bundle.ethPriceUSD)
+    : 0
+
+  // Store ETH price for native token lookups
+  priceMap.set('native', ethPriceUSD)
+
+  for (const token of tokensData.tokens) {
+    const derivedETH = parseFloat(token.derivedETH)
+    const priceUSD = derivedETH * ethPriceUSD
+    priceMap.set(token.id.toLowerCase(), priceUSD)
+    // Also store by symbol for convenience
+    priceMap.set(token.symbol.toLowerCase(), priceUSD)
+  }
+
+  return priceMap
+}
+
+/**
  * Fetch daily price data for a pool (for charts)
  */
 export async function fetchPoolDayData(
@@ -342,12 +532,155 @@ export async function fetchCurrentPrice(
   return null
 }
 
+/**
+ * Fetch user's recent transactions (swaps, adds, removes)
+ */
+export async function fetchUserTransactions(
+  chainId: number = CHAIN_IDS.MAINNET,
+  userAddress: string,
+  limit = 20
+): Promise<UserTransaction[]> {
+  if (!hasSubgraphSupport(chainId)) {
+    return []
+  }
+
+  const address = userAddress.toLowerCase()
+
+  // Fetch swaps, mints, and burns in parallel
+  const [swapsData, mintsData, burnsData] = await Promise.all([
+    querySubgraph<{ swaps: SubgraphSwap[] }>(
+      chainId,
+      `
+      {
+        swaps(
+          first: ${limit}
+          orderBy: timestamp
+          orderDirection: desc
+          where: { origin: "${address}" }
+        ) {
+          id
+          timestamp
+          origin
+          amount0
+          amount1
+          amountUSD
+          pool {
+            token0 { symbol }
+            token1 { symbol }
+          }
+        }
+      }
+    `
+    ),
+    querySubgraph<{ mints: SubgraphMint[] }>(
+      chainId,
+      `
+      {
+        mints(
+          first: ${limit}
+          orderBy: timestamp
+          orderDirection: desc
+          where: { origin: "${address}" }
+        ) {
+          id
+          timestamp
+          origin
+          amount0
+          amount1
+          amountUSD
+          pool {
+            token0 { symbol }
+            token1 { symbol }
+          }
+        }
+      }
+    `
+    ),
+    querySubgraph<{ burns: SubgraphBurn[] }>(
+      chainId,
+      `
+      {
+        burns(
+          first: ${limit}
+          orderBy: timestamp
+          orderDirection: desc
+          where: { origin: "${address}" }
+        ) {
+          id
+          timestamp
+          origin
+          amount0
+          amount1
+          amountUSD
+          pool {
+            token0 { symbol }
+            token1 { symbol }
+          }
+        }
+      }
+    `
+    ),
+  ])
+
+  // Convert to unified format
+  const transactions: UserTransaction[] = []
+
+  for (const swap of swapsData.swaps) {
+    transactions.push({
+      id: swap.id,
+      type: 'swap',
+      timestamp: parseInt(swap.timestamp),
+      token0Symbol: swap.pool.token0.symbol,
+      token1Symbol: swap.pool.token1.symbol,
+      amount0: Math.abs(parseFloat(swap.amount0)),
+      amount1: Math.abs(parseFloat(swap.amount1)),
+      amountUSD: parseFloat(swap.amountUSD),
+    })
+  }
+
+  for (const mint of mintsData.mints) {
+    transactions.push({
+      id: mint.id,
+      type: 'add',
+      timestamp: parseInt(mint.timestamp),
+      token0Symbol: mint.pool.token0.symbol,
+      token1Symbol: mint.pool.token1.symbol,
+      amount0: Math.abs(parseFloat(mint.amount0)),
+      amount1: Math.abs(parseFloat(mint.amount1)),
+      amountUSD: parseFloat(mint.amountUSD),
+    })
+  }
+
+  for (const burn of burnsData.burns) {
+    transactions.push({
+      id: burn.id,
+      type: 'remove',
+      timestamp: parseInt(burn.timestamp),
+      token0Symbol: burn.pool.token0.symbol,
+      token1Symbol: burn.pool.token1.symbol,
+      amount0: Math.abs(parseFloat(burn.amount0)),
+      amount1: Math.abs(parseFloat(burn.amount1)),
+      amountUSD: parseFloat(burn.amountUSD),
+    })
+  }
+
+  // Sort by timestamp descending
+  transactions.sort((a, b) => b.timestamp - a.timestamp)
+
+  // Return top N
+  return transactions.slice(0, limit)
+}
+
 export default {
   fetchFactoryStats,
   fetchTopPools,
   fetchPool,
   fetchTopTokens,
+  fetchBundlePrice,
+  fetchTokenPrices,
+  fetchAllTokenPrices,
   fetchPoolDayData,
   fetchPoolHourData,
   fetchCurrentPrice,
+  fetchUserTransactions,
 }
