@@ -28,7 +28,7 @@ This document explains the architecture, configuration system, and contribution 
 ```bash
 # 1. Clone and install
 git clone <repo-url>
-cd 0g-vibe-web3-defi-template-template
+cd 0g-vibe-web3-defi-template
 npm install
 
 # 2. Set up environment variables
