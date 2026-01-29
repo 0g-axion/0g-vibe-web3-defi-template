@@ -7,22 +7,37 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary - 0G Purple
+        // Primary - 0G Purple (change primary-500 to rebrand)
         primary: {
           50: '#faf5ff',
           100: '#f3e8ff',
           200: '#e9d5ff',
           300: '#d8b4fe',
           400: '#c084fc',
-          500: '#8B5CF6',
+          500: '#8B5CF6', // Main brand color
           600: '#7C3AED',
           700: '#6d28d9',
           800: '#5b21b6',
           900: '#4c1d95',
           950: '#2e1065',
         },
+        // Secondary - Pink/Fuchsia (for gradients, change to rebrand)
+        secondary: {
+          50: '#fdf2f8',
+          100: '#fce7f3',
+          200: '#fbcfe8',
+          300: '#f9a8d4',
+          400: '#f472b6',
+          500: '#ec4899', // Secondary accent color
+          600: '#db2777',
+          700: '#be185d',
+          800: '#9d174d',
+          900: '#831843',
+          950: '#500724',
+        },
         // Background colors
         background: {
+          dark: '#0a0a0f', // Main app background
           start: '#1a0533',
           mid: '#2d1b4e',
           end: '#0f172a',

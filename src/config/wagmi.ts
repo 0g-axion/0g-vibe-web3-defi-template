@@ -31,11 +31,5 @@ export const config = getDefaultConfig({
 // Default chain for the app
 export { defaultChain }
 
-// RainbowKit theme customization
-export const rainbowTheme = {
-  accentColor: '#8B5CF6',
-  accentColorForeground: 'white',
-  borderRadius: 'large' as const,
-  fontStack: 'system' as const,
-  overlayBlur: 'small' as const,
-}
+// RainbowKit theme - re-export from centralized config for backwards compatibility
+export { RAINBOWKIT_THEME as rainbowTheme } from './theme'

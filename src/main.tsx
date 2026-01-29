@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { config } from './config/wagmi'
 import { FeatureProvider } from './providers/feature-provider'
+import { RAINBOWKIT_THEME, DESIGN_TOKENS } from './config/theme'
 import App from './App'
 import './index.css'
 
@@ -12,20 +13,14 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
+      staleTime: DESIGN_TOKENS.priceRefresh, // Use centralized config
       refetchOnWindowFocus: false,
     },
   },
 })
 
-// Custom RainbowKit theme matching our glassmorphism design
-const customTheme = darkTheme({
-  accentColor: '#8B5CF6',
-  accentColorForeground: 'white',
-  borderRadius: 'large',
-  fontStack: 'system',
-  overlayBlur: 'small',
-})
+// Custom RainbowKit theme - uses centralized brand colors from config/theme.ts
+const customTheme = darkTheme(RAINBOWKIT_THEME)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
