@@ -2,6 +2,38 @@
 
 This is a COMPLETE Web3 DeFi application template for 0G Network with working swap interface.
 
+---
+
+## ⚠️ CRITICAL: DO NOT BREAK THESE FILES
+
+These files have required exports that other files depend on. **NEVER remove or rename these exports:**
+
+### src/config/theme.ts - REQUIRED EXPORTS (ALL MUST EXIST):
+```typescript
+export const BRAND_COLORS = { ... }        // Used by components
+export const RAINBOWKIT_THEME = { ... }    // Used by main.tsx, wagmi.ts
+export const DESIGN_TOKENS = { ... }       // Used by main.tsx, components
+export const ANIMATION_CONFIG = { ... }    // Used by AnimatedBackground
+export type BrandColors = typeof BRAND_COLORS
+export type DesignTokens = typeof DESIGN_TOKENS
+```
+
+**If you modify theme.ts for ANY reason (color change, etc.), you MUST include ALL exports above.**
+
+### src/config/wagmi.ts - REQUIRED EXPORTS:
+```typescript
+export const config = getDefaultConfig({ ... })
+export { RAINBOWKIT_THEME as rainbowTheme } from './theme'
+```
+
+### src/hooks/index.ts - DO NOT DELETE
+This barrel file exports all hooks. Only ADD to it, never remove exports.
+
+### src/config/index.ts - DO NOT DELETE
+This barrel file exports all config. Only ADD to it, never remove exports.
+
+---
+
 ## CRITICAL: Import Patterns
 
 ### Hooks (use barrel export)
@@ -45,7 +77,11 @@ import { FeatureProvider, MINIMAL_FEATURES } from './providers/feature-provider'
 </FeatureProvider>
 ```
 
-### IF user wants to DISABLE a specific feature:
+### IF user wants to DISABLE a specific feature (pools, portfolio, chart):
+**⚠️ USE FEATURE FLAGS - DO NOT delete files or modify theme.ts**
+
+Edit ONLY `main.tsx` to pass config to FeatureProvider:
+
 ```typescript
 import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './providers/feature-provider'
 
@@ -56,6 +92,12 @@ import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './providers/fe
   <App />
 </FeatureProvider>
 ```
+
+**This is the ONLY correct way to disable features. Do NOT:**
+- Delete panel components
+- Modify theme.ts
+- Modify wagmi.ts
+- Remove exports from barrel files
 
 ---
 
@@ -302,18 +344,20 @@ import { useSwap, usePools, usePortfolio } from '@/hooks'
 
 ## COMMON CUSTOMIZATIONS
 
-| Request | Solution |
-|---------|----------|
-| "Change colors" | Edit `src/config/theme.ts` BRAND_COLORS, then update Tailwind if needed |
-| "Change gradient" | Use `from-primary-500 to-secondary-500` classes (edit theme.ts to change colors) |
-| "Add token" | Add to `src/constants/tokens.ts` MAINNET_TOKENS or TESTNET_TOKENS |
-| "Add pool" | Add to `src/constants/pools.ts` and optionally `src/config/subgraph.ts` |
-| "Swap only mode" | Use `MINIMAL_FEATURES` preset |
-| "Disable pools" | Set `pools: { enabled: false }` in FeatureProvider |
-| "Change default network" | Edit `src/config/chains.ts` defaultChain |
-| "Add new panel" | Create `web3/[name]-panel.tsx`, add tab in Header, add feature toggle |
-| "Custom slippage" | User sets in SwapSettings, default is 0.5% |
-| "Change refresh rate" | Edit `DESIGN_TOKENS` in `src/config/theme.ts` |
+| Request | Solution | ⚠️ DO NOT |
+|---------|----------|-----------|
+| "Remove pools/portfolio" | Use `mergeFeatures` in main.tsx with `enabled: false` | Delete files or modify theme.ts |
+| "Swap only mode" | Use `MINIMAL_FEATURES` preset in main.tsx | Delete panel components |
+| "Disable pools" | Set `pools: { enabled: false }` in FeatureProvider | Remove pool files |
+| "Disable portfolio" | Set `portfolio: { enabled: false }` in FeatureProvider | Remove portfolio files |
+| "Change colors" | Edit `src/config/theme.ts` BRAND_COLORS (keep ALL exports!) | Remove any exports |
+| "Change gradient" | Edit BRAND_COLORS.primary/secondary in theme.ts | Use hardcoded hex values |
+| "Add token" | Add to `src/constants/tokens.ts` | - |
+| "Add pool" | Add to `src/constants/pools.ts` | - |
+| "Change default network" | Edit `src/config/chains.ts` defaultChain | - |
+| "Add new panel" | Create `web3/[name]-panel.tsx`, add tab in Header | - |
+| "Custom slippage" | User sets in SwapSettings, default is 0.5% | - |
+| "Change refresh rate" | Edit `DESIGN_TOKENS` in `src/config/theme.ts` | Remove DESIGN_TOKENS export |
 
 ---
 
