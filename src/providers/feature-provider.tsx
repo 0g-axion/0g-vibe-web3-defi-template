@@ -9,6 +9,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useChainId } from 'wagmi'
 import {
   DEFAULT_FEATURES,
+  MINIMAL_FEATURES,
   resolveFeatures,
   mergeFeatures,
   type FeatureConfig,
@@ -18,6 +19,10 @@ import {
   type PortfolioFeatureConfig,
   type UIFeatureConfig,
 } from '@/config/features'
+
+// Re-export utilities for convenient access
+// This allows: import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './providers/feature-provider'
+export { DEFAULT_FEATURES, MINIMAL_FEATURES, mergeFeatures }
 
 const FeatureContext = createContext<FeatureConfig>(DEFAULT_FEATURES)
 
