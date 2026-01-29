@@ -2,6 +2,25 @@
 
 This is a COMPLETE Web3 DeFi application template for 0G Network with working swap interface.
 
+## CRITICAL: Import Patterns
+
+### Hooks (use barrel export)
+```typescript
+import { useSwap, usePools, usePortfolio, useChartData } from '@/hooks'
+```
+
+### Config (use barrel export)
+```typescript
+import { BRAND_COLORS, DEFAULT_FEATURES, zgMainnet } from '@/config'
+```
+
+### Features (from provider - includes utilities)
+```typescript
+import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './providers/feature-provider'
+```
+
+---
+
 ## CRITICAL: Feature Request Handling
 
 When user requests a feature, follow this decision flow:
@@ -18,11 +37,75 @@ When user requests a feature, follow this decision flow:
 ### IF user wants ONLY SWAP (no pools/charts/portfolio):
 Use `MINIMAL_FEATURES` preset in main.tsx:
 
-    import { MINIMAL_FEATURES } from './config/features'
-    <FeatureProvider config={MINIMAL_FEATURES}>
+```typescript
+import { FeatureProvider, MINIMAL_FEATURES } from './providers/feature-provider'
+
+<FeatureProvider config={MINIMAL_FEATURES}>
+  <App />
+</FeatureProvider>
+```
 
 ### IF user wants to DISABLE a specific feature:
-Set `enabled: false` in FeatureProvider config for that feature
+```typescript
+import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './providers/feature-provider'
+
+<FeatureProvider config={mergeFeatures(DEFAULT_FEATURES, {
+  pools: { enabled: false },
+  portfolio: { enabled: false },
+})}>
+  <App />
+</FeatureProvider>
+```
+
+---
+
+## THEME & BRANDING
+
+### Changing Brand Colors
+
+Edit `src/config/theme.ts`:
+
+```typescript
+export const BRAND_COLORS = {
+  primary: '#8B5CF6',      // Main brand color (violet)
+  secondary: '#ec4899',    // Accent color (pink)
+  primaryForeground: '#ffffff',
+  secondaryForeground: '#ffffff',
+  background: {
+    dark: '#0a0a0f',
+    gradientStart: '#1a0533',
+    gradientMid: '#2d1b4e',
+    gradientEnd: '#0f172a',
+  },
+  success: '#10b981',
+  error: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+}
+```
+
+Then update `tailwind.config.js` primary/secondary color scales to match.
+
+### CRITICAL: Tailwind Color Classes
+
+| Purpose | Use This | NOT This |
+|---------|----------|----------|
+| Primary brand | `primary-500` | `violet-500` |
+| Secondary accent | `secondary-500` | `fuchsia-500` |
+| Gradients | `from-primary-500 to-secondary-500` | `from-violet-500 to-fuchsia-500` |
+| Background | `bg-background-dark` | `bg-[#0a0a0f]` |
+
+### Design Tokens
+
+Available in `src/config/theme.ts` as `DESIGN_TOKENS`:
+- Layout: `headerHeight`, `maxContentWidth`, `containerPadding`
+- Timing: `transitionFast` (150ms), `transitionNormal` (200ms), `transitionSlow` (300ms)
+- Refresh: `balanceRefresh` (15s), `priceRefresh` (30s), `poolRefresh` (60s)
+- Border radius: `radiusSmall`, `radiusMedium`, `radiusLarge`, `radiusXLarge`
+
+### RainbowKit Theme
+
+Wallet modal styling is in `RAINBOWKIT_THEME` (uses `BRAND_COLORS.primary`).
 
 ---
 
@@ -91,19 +174,6 @@ Located in `src/config/features.ts`:
       showFaucetLink: boolean       // Link to testnet faucet
       animatedBackground: boolean   // Gradient orb animation
       showMainnetWarning: boolean   // Real money warning on mainnet
-
-### How to Use Feature Config
-
-In main.tsx for custom configuration:
-
-    import { FeatureProvider, mergeFeatures, DEFAULT_FEATURES } from './config/features'
-
-    <FeatureProvider config={mergeFeatures(DEFAULT_FEATURES, {
-      pools: { enabled: false },
-      chart: { enabled: false },
-    })}>
-      <App />
-    </FeatureProvider>
 
 ---
 
@@ -176,21 +246,29 @@ The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
 
 ## AVAILABLE HOOKS
 
+All hooks importable from `@/hooks`:
+```typescript
+import { useSwap, usePools, usePortfolio } from '@/hooks'
+```
+
 | Hook | Purpose | Returns |
 |------|---------|---------|
 | `useSwap()` | Execute swaps | status, txHash, getQuote, executeSwap |
+| `useSwapQuote()` | Get swap quotes | quote, isLoading, refetch |
 | `usePools()` | Pool data | pools, isDexAvailable, isLoading |
+| `useSubgraphPools()` | Top pools from subgraph | topPools, protocolStats |
 | `usePortfolio()` | Holdings | holdings, totalValue, hasHoldings |
 | `useChartData()` | Price charts | data (OHLC), isLoading, hasSubgraph |
-| `useCurrentPrice()` | Latest price | Query with current price |
-| `useSwapQuote()` | Demo quotes | quote, isLoading, refetch |
-| `useSubgraphPools()` | Top pools | topPools from subgraph |
 | `useTokenList()` | Token browser | tokens, search, filter |
 | `useTokenBalance()` | Single balance | balance, formatted |
+| `useTokenPrices()` | Token prices | prices, isLoading |
+| `useUserTransactions()` | Transaction history | transactions, isLoading |
 | `useWalletConnection()` | Wallet state | isConnected, address, chainId |
 | `useWalletInfo()` | Wallet meta | ens, avatar, displayName |
 | `useFeatures()` | Feature config | All feature flags |
+| `useFeatureEnabled()` | Single feature check | boolean |
 | `useFrameworkReady()` | Init state | Framework ready boolean |
+| `useToast()` | Toast notifications | toast function |
 
 ---
 
@@ -226,7 +304,8 @@ The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
 
 | Request | Solution |
 |---------|----------|
-| "Change colors" | Edit `tailwind.config.js` theme.extend.colors |
+| "Change colors" | Edit `src/config/theme.ts` BRAND_COLORS, then update Tailwind if needed |
+| "Change gradient" | Use `from-primary-500 to-secondary-500` classes (edit theme.ts to change colors) |
 | "Add token" | Add to `src/constants/tokens.ts` MAINNET_TOKENS or TESTNET_TOKENS |
 | "Add pool" | Add to `src/constants/pools.ts` and optionally `src/config/subgraph.ts` |
 | "Swap only mode" | Use `MINIMAL_FEATURES` preset |
@@ -234,6 +313,7 @@ The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
 | "Change default network" | Edit `src/config/chains.ts` defaultChain |
 | "Add new panel" | Create `web3/[name]-panel.tsx`, add tab in Header, add feature toggle |
 | "Custom slippage" | User sets in SwapSettings, default is 0.5% |
+| "Change refresh rate" | Edit `DESIGN_TOKENS` in `src/config/theme.ts` |
 
 ---
 
@@ -241,6 +321,8 @@ The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
 
     src/
     ├── config/
+    │   ├── index.ts           # Barrel export - import { X } from '@/config'
+    │   ├── theme.ts           # Brand colors, design tokens, RainbowKit theme
     │   ├── chains.ts          # Chain definitions (mainnet + testnet)
     │   ├── features.ts        # Feature toggle system
     │   ├── subgraph.ts        # Subgraph URLs and featured pools
@@ -250,11 +332,13 @@ The `FEATURED_POOLS` array controls which pools appear in chart dropdown.
     │   ├── tokens.ts          # Token lists by network
     │   ├── pools.ts           # Pool configurations
     │   └── abis.ts            # Contract ABIs (V3 Router, ERC20, Pool)
-    ├── hooks/                 # All React hooks (see hooks table above)
+    ├── hooks/
+    │   ├── index.ts           # Barrel export - import { useX } from '@/hooks'
+    │   └── use*.ts            # Individual hooks
     ├── services/
     │   └── subgraph.ts        # GraphQL queries for DEX data
     ├── providers/
-    │   └── feature-provider.tsx  # Feature config context
+    │   └── feature-provider.tsx  # Feature config context (re-exports utilities)
     └── components/
         ├── ui/                # Design system (Glass*, Shimmer, etc.)
         └── web3/              # All Web3 components
@@ -298,4 +382,4 @@ Uses Uniswap V3 compatible schema. Key entities:
 
 ---
 
-For stock photos, use images from Unsplash with valid URLs.
+For stock photos, use images from Pexels with valid URLs.
